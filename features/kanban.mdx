@@ -1,0 +1,105 @@
+---
+title: "Kanban Comercial"
+description: "Pipeline visual conectado ao contexto omnichannel das conversas."
+---
+
+O Kanban Comercial do LF Connect é um **funil de vendas embutido na plataforma de
+atendimento**. Cada card é vinculado a um contato e a uma conversa real — não é
+um CRM separado que você precisa sincronizar.
+
+<Note>
+  Toda funcionalidade descrita aqui também está disponível **via API**.
+  Veja a [referência completa do Kanban](/api-reference/kanban/funnels).
+</Note>
+
+## O que você consegue fazer
+
+<CardGroup cols={2}>
+  <Card title="Múltiplos funis">
+    Crie funis separados (Vendas SMB, Vendas Enterprise, Renovação, Onboarding) com etapas próprias.
+  </Card>
+  <Card title="Visão quadro ou lista">
+    Alterne entre Kanban visual e lista operacional sem perder filtros.
+  </Card>
+  <Card title="Ficha 360°">
+    Cada card tem checklist, notas, anexos, agentes, valor, prioridade e atributos personalizados.
+  </Card>
+  <Card title="Automações por etapa">
+    Dispare ação ao mover card (enviar mensagem, mudar label, atribuir time).
+  </Card>
+</CardGroup>
+
+## Estrutura
+
+```
+Funil (ex: "Vendas SMB")
+├── Etapa: Lead (cor cinza)
+│   ├── Card #101 — ACME Corp
+│   ├── Card #102 — Beta Ltda
+│   └── ...
+├── Etapa: Qualificado (cor azul)
+├── Etapa: Proposta (cor verde)
+├── Etapa: Negociação (cor amarela)
+└── Etapa: Ganho / Perdido (cor verde / vermelha)
+```
+
+Cada **etapa** tem:
+- `id` (slug, ex: `lead`, `qualified`)
+- `name` (display, ex: "Lead")
+- `color` (hex)
+- `position` (ordem visual)
+- `description` (tooltip)
+
+## Campos do card (Kanban Item)
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| `title` | string | Título do card (ex: "Oportunidade ACME") |
+| `description` | string | Texto livre |
+| `status` | enum | `open` / `won` / `lost` |
+| `priority` | enum | `low` / `medium` / `high` / `urgent` |
+| `value` | number | Valor monetário |
+| `currency` | object | Moeda (BRL, USD, EUR...) |
+| `assigned_agents` | array | IDs dos atendentes responsáveis |
+| `conversation_display_id` | number | Conversa vinculada |
+| `checklist` | array | Tarefas do card |
+| `notes` | array | Notas internas |
+| `attachments` | array | Arquivos anexados |
+
+## Automações por etapa
+
+Pra cada etapa do funil você pode configurar ações que disparam ao **entrar** ou
+**sair** da etapa:
+
+- Enviar mensagem (template ou texto livre)
+- Adicionar / remover label
+- Atribuir agente ou equipe
+- Mudar status da conversa vinculada
+- Chamar webhook externo (n8n, Zapier, sua API)
+
+## Importação e exportação
+
+- **Export CSV** com filtros aplicados (UTF-8 BOM, separador `;` — abre direto no Excel BR)
+- **Import CSV** com preview e mapeamento de colunas antes de confirmar
+
+## Webhooks de Kanban
+
+Eventos disparados em tempo real (configure em **Webhooks**):
+
+- `kanban.item.created`
+- `kanban.item.updated`
+- `kanban.item.stage_changed`
+- `kanban.item.status_changed`
+
+Veja [Webhooks](/essentials/webhooks) pra payload completo e validação de assinatura.
+
+## Próximos passos
+
+<CardGroup cols={2}>
+  <Card title="Criar um funil via API" icon="code" href="/api-reference/kanban/funnels">
+    Endpoints `POST /funnels`, `PATCH /funnels/:id/reorder`, etc.
+  </Card>
+  <Card title="Manipular cards via API" icon="code" href="/api-reference/kanban/items">
+    Listar, criar, mover, filtrar e fazer ações em massa.
+  </Card>
+</CardGroup>

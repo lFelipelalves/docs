@@ -1,0 +1,101 @@
+---
+title: "Automações e regras"
+description: "Regras event-driven, macros e bots — sem código."
+---
+
+Automações deixam você reagir a eventos sem precisar de código externo.
+Tudo configurado pela UI da plataforma, com fluxo Evento → Condição → Ação.
+
+## Estrutura de uma regra
+
+```
+┌─────────┐     ┌───────────┐     ┌─────────┐
+│ EVENTO  │ ──▶ │ CONDIÇÕES │ ──▶ │  AÇÕES  │
+│ (trigger)│     │ (filtros) │     │  (faz)  │
+└─────────┘     └───────────┘     └─────────┘
+```
+
+### Eventos (triggers)
+- Conversa criada
+- Conversa atualizada
+- Conversa reaberta
+- Conversa pendente
+- Mensagem criada
+
+### Condições (filtros — combinam com E/OU)
+- Status, caixa de entrada, label, equipe, idioma, país
+- Atributos personalizados de contato/conversa
+- Conteúdo da mensagem (contém, igual, regex)
+- Horário do dia / dia da semana
+- Notas privadas
+
+### Ações
+- Atribuir agente / equipe / último agente
+- Adicionar / remover label
+- Mudar status / prioridade
+- Enviar mensagem (template ou texto)
+- Enviar e-mail
+- Enviar webhook (URL externa)
+- Silenciar / fazer snooze
+- Resolver / redistribuir
+- Enviar transcrição
+
+## Exemplo prático
+
+**Regra:** Toda mensagem contendo "boleto" vai pro time Financeiro
+
+| Campo | Valor |
+| --- | --- |
+| Evento | Mensagem criada |
+| Condição | Conteúdo da mensagem **contém** `boleto` |
+| Ação 1 | Atribuir equipe → Financeiro |
+| Ação 2 | Adicionar label → `aguardando-financeiro` |
+| Ação 3 | Mudar prioridade → Alta |
+
+## Macros
+
+Macros são **sequências de ações que você dispara manualmente** com um clique.
+Útil pra ações repetitivas que não merecem virar regra automática.
+
+Exemplo — Macro "Escalar para N2":
+1. Adiciona label `n2`
+2. Atribui equipe Suporte N2
+3. Envia mensagem "Sua solicitação foi escalada pro time técnico"
+4. Muda status para Pending
+
+Tipos: **Pessoais** (só você usa) e **Globais** (toda a conta).
+
+## Agent Bots
+
+Bots externos (Typebot, Dialogflow, n8n) podem operar como atendente virtual.
+Recebem mensagens via webhook, respondem via API, e fazem **handover** pra
+humano quando precisam.
+
+### Integrações nativas
+- **Typebot** — fluxos visuais (drag-and-drop), suporta `MEGA_CMD` pra comandos especiais
+- **Dialogflow** — NLU do Google
+- **EvolutionAPI** — adapter
+- **QuepasaAPI** — adapter
+
+### Webhook próprio
+Você pode escrever seu bot do zero — o LF Connect envia evento `message_created`
+pro seu webhook, sua API processa e devolve a resposta via `POST /messages`.
+
+Veja [Webhooks](/essentials/webhooks) e [Autenticação](/essentials/authentication).
+
+## Boas práticas
+
+<AccordionGroup>
+  <Accordion title="Comece com poucas regras e bem testadas">
+    1 regra mal configurada pode reatribuir 1000 conversas no momento errado.
+    Crie uma → teste com 10 conversas → ajuste → ative pra todas.
+  </Accordion>
+  <Accordion title="Use labels como switch">
+    Em vez de regras com 5 condições aninhadas, crie regras simples que adicionam
+    labels (`urgente`, `vip`, `financeiro`) e depois outras regras agem sobre essas labels.
+  </Accordion>
+  <Accordion title="Webhooks são sua válvula de escape">
+    Se a UI não cobre seu caso, mande webhook pro n8n/Make e faça lógica complexa lá.
+    Volta pra plataforma via API quando precisar agir.
+  </Accordion>
+</AccordionGroup>

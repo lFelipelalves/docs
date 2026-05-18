@@ -1,0 +1,83 @@
+---
+title: "Notas e anexos"
+description: "Comentários internos e arquivos vinculados ao card."
+---
+
+Notas são comentários internos do time (não visíveis ao cliente). Cada nota
+pode ter anexos próprios. Cards também podem ter anexos diretos sem nota associada.
+
+## Notas — endpoints
+
+| Método | Endpoint | Descrição |
+| --- | --- | --- |
+| `POST` | `/kanban_items/:id/create_note` | Cria nota |
+| `GET` | `/kanban_items/:id/get_notes` | Lista notas |
+| `PATCH` | `/kanban_items/:id/update_note` | Edita nota |
+| `DELETE` | `/kanban_items/:id/delete_note` | Exclui nota |
+
+## Criar nota
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/create_note \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Cliente pediu desconto. Aprovado até 10%.",
+    "attachments": [],
+    "linked_item_id": null,
+    "linked_conversation_id": 12345,
+    "linked_contact_id": 542
+  }'
+```
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| `text` | string | Conteúdo (suporta markdown básico) |
+| `attachments` | array | IDs de attachments já enviados |
+| `linked_item_id` | integer | Outro card relacionado |
+| `linked_conversation_id` | integer | Conversa relacionada |
+| `linked_contact_id` | integer | Contato relacionado |
+
+## Anexos — endpoints
+
+| Método | Endpoint | Descrição |
+| --- | --- | --- |
+| `GET` | `/kanban/items/:item_id/attachments` | Lista anexos do card |
+| `POST` | `/kanban/items/:item_id/attachments` | Envia anexo (multipart) |
+| `DELETE` | `/kanban/items/:item_id/attachments/:id` | Exclui anexo |
+| `POST` | `/kanban/items/:item_id/note_attachments` | Envia anexo de nota |
+| `DELETE` | `/kanban/items/:item_id/note_attachments/:id` | Exclui anexo de nota |
+
+<Warning>
+  Note que esses endpoints usam o namespace **`/kanban/items/`** (não `/kanban_items/`).
+  É uma rota separada por razões históricas — fique atento ao prefixo.
+</Warning>
+
+## Enviar anexo no card
+
+Upload multipart padrão:
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban/items/101/attachments \
+  -H "api_access_token: $TOKEN" \
+  -F "attachment=@contrato.pdf"
+```
+
+A resposta retorna o `id` do anexo, que você pode então referenciar ao criar nota:
+
+```json
+{
+  "id": 789,
+  "file_url": "https://chat.lfautomatiza.com/rails/active_storage/blobs/...",
+  "file_size": 245760,
+  "file_type": "application/pdf"
+}
+```
+
+## Limites
+
+| Tipo | Limite |
+| --- | --- |
+| Tamanho por arquivo | 25 MB |
+| Tipos aceitos | PDF, DOC/DOCX, XLS/XLSX, CSV, PNG, JPG, MP4, MP3, WAV |
+| Quantidade por card | Sem limite (até 25MB cada) |

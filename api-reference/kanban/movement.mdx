@@ -1,0 +1,67 @@
+---
+title: "Movimentação e ordenação"
+description: "Mover cards entre etapas, entre funis e reordenar dentro da etapa."
+---
+
+Os endpoints de movimentação são separados do `PATCH /kanban_items/:id` porque
+disparam **automações de etapa** e atualizam o histórico de tempo por estágio.
+Use sempre eles em vez de `PATCH` quando for trocar etapa/funil.
+
+## Endpoints
+
+| Método | Endpoint | Descrição |
+| --- | --- | --- |
+| `POST` | `/kanban_items/:id/move_to_stage` | Move pra outra etapa (mesmo funil ou outro) |
+| `POST` | `/kanban_items/:id/move` | Move entre funil/etapa |
+| `POST` | `/kanban_items/reorder` | Reordena cards no quadro |
+
+## Mover pra outra etapa
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/move_to_stage \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "funnel_stage": "proposal"
+  }'
+```
+
+Se quiser mover pra etapa de **outro funil**:
+
+```json
+{
+  "funnel_stage": "onboarding",
+  "funnel_id": 22
+}
+```
+
+<Info>
+  Mover pra etapa cujo nome inclui `won` ou `lost` automaticamente atualiza
+  `item_details.status`. Pra forçar manualmente, use [`change_status`](/api-reference/kanban/items).
+</Info>
+
+## Reordenar cards na etapa
+
+Quando um agente arrasta cards no Kanban, o front chama esse endpoint
+com todas as posições novas:
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/reorder \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "positions": [
+      { "id": 101, "position": 1, "funnel_stage": "lead" },
+      { "id": 102, "position": 2, "funnel_stage": "lead" },
+      { "id": 103, "position": 3, "funnel_stage": "lead" }
+    ]
+  }'
+```
+
+### Quando usar `move_to_stage` vs `move`
+
+| Cenário | Endpoint |
+| --- | --- |
+| Card sobe/desce no funil atual | `move_to_stage` |
+| Card vai pra outro funil (ex: ganhou venda, agora vai pra Onboarding) | `move` |
+| Apenas reordena dentro da mesma etapa (drag-and-drop visual) | `reorder` |

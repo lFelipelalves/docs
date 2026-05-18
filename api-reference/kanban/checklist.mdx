@@ -1,0 +1,84 @@
+---
+title: "Checklist do card"
+description: "Tarefas (to-do) dentro de cada card do Kanban, com agente, prazo e progresso."
+---
+
+Cada card pode ter uma lista de tarefas. Útil pra acompanhar etapas de qualificação,
+documentos pendentes, follow-ups ou onboarding.
+
+## Endpoints
+
+| Método | Endpoint | Descrição |
+| --- | --- | --- |
+| `POST` | `/kanban_items/:id/create_checklist_item` | Cria tarefa |
+| `GET` | `/kanban_items/:id/get_checklist` | Lista tarefas |
+| `PATCH` | `/kanban_items/:id/update_checklist_item` | Edita tarefa |
+| `POST` | `/kanban_items/:id/toggle_checklist_item` | Marca/desmarca conclusão |
+| `DELETE` | `/kanban_items/:id/delete_checklist_item` | Exclui tarefa |
+| `POST` | `/kanban_items/:id/assign_agent_to_checklist_item` | Atribui agente |
+| `DELETE` | `/kanban_items/:id/remove_agent_from_checklist_item` | Remove agente |
+| `POST` | `/kanban_items/:id/duplicate_checklist` | Duplica checklist pra outro card |
+| `GET` | `/kanban_items/:id/search_checklist` | Busca textual |
+| `GET` | `/kanban_items/:id/checklist_progress_by_agent` | Progresso por agente |
+
+## Criar tarefa
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/create_checklist_item \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Enviar contrato pra assinatura",
+    "due_date": "2026-05-25",
+    "priority": "high",
+    "agent_id": 7
+  }'
+```
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| `text` | string | Descrição da tarefa |
+| `due_date` | date (ISO) | Prazo (opcional) |
+| `priority` | enum | `low` / `medium` / `high` / `urgent` |
+| `agent_id` | integer | Agente responsável |
+
+## Marcar como concluída
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/toggle_checklist_item \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "checklist_item_id": 55 }'
+```
+
+O endpoint é toggle — se está aberto, fecha; se está fechado, reabre.
+
+## Duplicar checklist pra outro card
+
+Quando você cria um template de processo (ex: "Onboarding cliente novo"):
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/duplicate_checklist \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "target_item_id": 202,
+    "merge": false
+  }'
+```
+
+| Campo | Comportamento |
+| --- | --- |
+| `target_item_id` | Card que receberá a checklist |
+| `merge: false` | Substitui checklist do destino |
+| `merge: true` | Adiciona itens à checklist existente |
+
+## Progresso por agente
+
+```bash
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/checklist_progress_by_agent \
+  -H "api_access_token: $TOKEN"
+```
+
+Retorna quantas tarefas cada agente tem atribuídas e quantas já completou —
+útil pra dashboards de produtividade.

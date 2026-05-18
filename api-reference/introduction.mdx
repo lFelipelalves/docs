@@ -1,33 +1,138 @@
 ---
-title: 'Introduction'
-description: 'Example section for showcasing API endpoints'
+title: "Visão geral da API"
+description: "API REST do LF Connect — endpoints, convenções e exemplos."
 ---
 
-<Note>
-  If you're not looking to build API reference documentation, you can delete
-  this section by removing the api-reference folder.
-</Note>
+A API do LF Connect é **REST**, retorna **JSON**, autentica via header `api_access_token`
+e segue padrões previsíveis em toda a base.
 
-## Welcome
+## Base URL
 
-There are two ways to build API documentation: [OpenAPI](https://mintlify.com/docs/api-playground/openapi/setup) and [MDX components](https://mintlify.com/docs/api-playground/mdx/configuration). For the starter kit, we are using the following OpenAPI specification.
+```
+https://chat.lfautomatiza.com/api/v1
+```
 
-<Card
-  title="Plant Store Endpoints"
-  icon="leaf"
-  href="https://github.com/mintlify/starter/blob/main/api-reference/openapi.json"
->
-  View the OpenAPI specification file
-</Card>
+A maioria dos endpoints é **escopada por conta** (workspace) e segue o padrão:
 
-## Authentication
+```
+/api/v1/accounts/{account_id}/{recurso}
+```
 
-All API endpoints are authenticated using Bearer tokens and picked up from the specification file.
+## Convenções
+
+| Aspecto | Como funciona |
+| --- | --- |
+| Formato | JSON em request e response |
+| Autenticação | Header `api_access_token` |
+| Identificadores | Inteiros (`account_id`, `inbox_id`, `conversation_id`...) |
+| Datas | ISO 8601 (`"2026-05-18T14:23:11.000Z"`) ou timestamp Unix |
+| Paginação | Query param `page` (1-indexed), 25 itens por página |
+| Filtros | Query params (`?status=open&assignee_type=me`) |
+| Erros | HTTP status code + body `{ "error": "mensagem" }` |
+
+## Códigos de resposta
+
+| Código | Significado |
+| --- | --- |
+| `200 OK` | Requisição bem-sucedida |
+| `201 Created` | Recurso criado |
+| `204 No Content` | Sucesso sem corpo (DELETE) |
+| `400 Bad Request` | Payload ou parâmetro inválido |
+| `401 Unauthorized` | Token ausente ou inválido |
+| `403 Forbidden` | Sem permissão pra ação |
+| `404 Not Found` | Recurso não existe |
+| `422 Unprocessable Entity` | Validação de negócio falhou |
+| `429 Too Many Requests` | Rate limit estourado |
+| `500 Internal Server Error` | Erro do servidor (abre ticket) |
+
+## Recursos disponíveis
+
+<CardGroup cols={2}>
+  <Card title="Conversas" icon="messages">
+    CRUD de conversas, atribuição de agente, mudança de status
+  </Card>
+  <Card title="Mensagens" icon="comment">
+    Enviar texto, mídia, templates HSM, notas privadas
+  </Card>
+  <Card title="Contatos" icon="address-book">
+    Criar, listar, importar, segmentar
+  </Card>
+  <Card title="Kanban" icon="kanban" href="/api-reference/kanban/funnels">
+    Funis, cards, automações, importação
+  </Card>
+  <Card title="Campanhas" icon="bullhorn">
+    One-off e ongoing, multi-inbox, métricas
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/essentials/webhooks">
+    Configurar eventos e validar assinatura
+  </Card>
+</CardGroup>
+
+## Primeira chamada
+
+Liste suas conversas pra confirmar que tudo está conectado:
+
+<CodeGroup>
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/conversations \
+  -H "api_access_token: SEU_TOKEN"
+```
+
+```javascript Node.js
+const res = await fetch(
+  'https://chat.lfautomatiza.com/api/v1/accounts/1/conversations',
+  { headers: { 'api_access_token': process.env.LF_TOKEN } }
+);
+console.log(await res.json());
+```
+
+```python Python
+import requests
+r = requests.get(
+    'https://chat.lfautomatiza.com/api/v1/accounts/1/conversations',
+    headers={'api_access_token': TOKEN}
+)
+print(r.json())
+```
+</CodeGroup>
+
+Resposta esperada:
 
 ```json
-"security": [
-  {
-    "bearerAuth": []
+{
+  "data": {
+    "meta": {
+      "all_count": 47,
+      "mine_count": 12
+    },
+    "payload": [
+      {
+        "id": 123,
+        "status": "open",
+        "contact": {
+          "name": "Carlos Antônio",
+          "phone_number": "+5521999544338"
+        },
+        "messages_count": 4
+      }
+    ]
   }
-]
+}
 ```
+
+## Próximos passos
+
+<CardGroup cols={2}>
+  <Card title="Autenticação" icon="key" href="/essentials/authentication">
+    Como pegar token e enviar nas requisições
+  </Card>
+  <Card title="Rate limits" icon="gauge" href="/essentials/rate-limits">
+    Tetos, headers e como evitar 429
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/essentials/webhooks">
+    Reagir a eventos em tempo real
+  </Card>
+  <Card title="API Kanban" icon="kanban" href="/api-reference/kanban/funnels">
+    Pipeline comercial via API
+  </Card>
+</CardGroup>

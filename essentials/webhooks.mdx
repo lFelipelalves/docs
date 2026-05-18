@@ -1,0 +1,146 @@
+---
+title: "Webhooks"
+description: "Receba eventos do LF Connect em tempo real na sua URL."
+---
+
+Webhooks são a forma certa de reagir ao que acontece na plataforma. Em vez de
+ficar perguntando "tem mensagem nova?" por polling, você cadastra uma URL e o
+LF Connect chama ela toda vez que um evento acontece.
+
+## Configurar um webhook
+
+<Steps>
+  <Step title="Defina sua URL receptora">
+    Precisa ser HTTPS, com endpoint público acessível (n8n, ngrok pra teste,
+    AWS Lambda, sua API, etc.). A URL precisa retornar `200 OK` em menos de 5 segundos.
+  </Step>
+  <Step title="Cadastre na plataforma">
+    Em **Configurações → Integrações → Webhooks → Adicionar novo**.
+    Informe a URL, selecione os eventos e (opcionalmente) defina um secret.
+  </Step>
+  <Step title="Valide a assinatura">
+    Se configurou secret, todo POST vem com header `X-Chatwoot-Signature` —
+    HMAC-SHA256 do payload com sua secret. Sempre valide antes de processar.
+  </Step>
+</Steps>
+
+## Eventos disponíveis
+
+### Conversas
+- `conversation_created` — nova conversa abriu
+- `conversation_status_changed` — open/pending/resolved/snoozed mudou
+- `conversation_updated` — qualquer outro campo da conversa mudou
+- `conversation_resolved` — atalho do anterior
+
+### Mensagens
+- `message_created` — nova mensagem (incoming ou outgoing)
+- `message_updated` — mensagem editada
+
+### Contatos
+- `contact_created` — contato novo cadastrado
+- `contact_updated` — contato editado
+
+### Widget
+- `webwidget_triggered` — visitante abriu o chat no site
+
+### Kanban (Mega)
+- `kanban.item.created` — card novo
+- `kanban.item.updated` — card editado
+- `kanban.item.stage_changed` — card moveu de etapa
+- `kanban.item.status_changed` — won / lost / open
+
+## Payload exemplo — `message_created`
+
+```json
+{
+  "event": "message_created",
+  "id": 142567,
+  "content": "Olá! Tenho interesse no plano Scale.",
+  "created_at": "2026-05-18T14:23:11.000Z",
+  "message_type": "incoming",
+  "content_type": "text",
+  "private": false,
+  "source_id": "wamid.HBgNNTUx...",
+  "conversation": {
+    "id": 1287,
+    "inbox_id": 1,
+    "status": "open"
+  },
+  "sender": {
+    "id": 542,
+    "name": "Carlos Antônio",
+    "phone_number": "+5521999544338",
+    "type": "contact"
+  },
+  "account": {
+    "id": 1,
+    "name": "LF Automatiza"
+  }
+}
+```
+
+## Verificação de assinatura
+
+Sempre que configurar `secret`, valide o header antes de confiar no payload:
+
+<CodeGroup>
+```javascript Node.js
+import crypto from 'crypto';
+
+function verify(payloadRaw, signatureHeader, secret) {
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(payloadRaw)
+    .digest('hex');
+  return crypto.timingSafeEqual(
+    Buffer.from(expected),
+    Buffer.from(signatureHeader)
+  );
+}
+```
+
+```python Python
+import hmac, hashlib
+
+def verify(payload_raw: bytes, signature_header: str, secret: str) -> bool:
+    expected = hmac.new(
+        secret.encode(), payload_raw, hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(expected, signature_header)
+```
+</CodeGroup>
+
+## Retry policy
+
+Se sua URL não retornar `2xx` em até 5 segundos, o LF Connect tenta novamente:
+
+- 1ª retry: 30s depois
+- 2ª retry: 2min depois
+- 3ª retry: 10min depois
+- Após 3 falhas: descartado (não há filas persistentes pra você)
+
+<Tip>
+  Pra integrações críticas, sua URL deve **só receber, validar e empilhar** —
+  qualquer processamento pesado vai pra fila própria sua (SQS, Bull, etc.).
+  Webhook que faz lookup em banco síncrono é o caminho mais rápido pra perder evento.
+</Tip>
+
+## Tutorial: webhook via n8n
+
+A forma mais rápida pra cliente não-dev é via **n8n**:
+
+<Steps>
+  <Step title="Crie um workflow novo">
+    Adicione node **Webhook** como trigger. Modo: `POST`. Path: o que quiser.
+  </Step>
+  <Step title="Copie a URL de produção">
+    n8n te dá uma URL tipo `https://seu-n8n.com/webhook/abc-123`.
+  </Step>
+  <Step title="Cadastre no LF Connect">
+    Cola a URL em **Configurações → Webhooks**. Selecione os eventos.
+  </Step>
+  <Step title="Teste">
+    Mande uma mensagem pro WhatsApp da inbox. Em 1-2s o n8n recebe e você vê
+    o payload completo no canvas.
+  </Step>
+</Steps>

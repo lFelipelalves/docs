@@ -1,0 +1,120 @@
+---
+title: "Automações e configuração"
+description: "Configurar webhooks de Kanban, automações por etapa e config global."
+---
+
+Automações de Kanban executam ações quando cards entram/saem de etapas
+ou mudam de status. Tudo configurável via API.
+
+## Configuração do Kanban
+
+| Método | Endpoint | Descrição |
+| --- | --- | --- |
+| `GET` | `/kanban_config` | Obtém configuração atual |
+| `POST` | `/kanban_config` | Cria configuração |
+| `PUT` `PATCH` | `/kanban_config` | Atualiza configuração |
+| `DELETE` | `/kanban_config` | Remove configuração (volta pro default) |
+| `POST` | `/kanban_config/test_webhook` | Testa URL de webhook configurada |
+
+### Payload de configuração
+
+```json
+{
+  "kanban_config": {
+    "enabled": true,
+    "webhook_url": "https://seu-n8n.com/webhook/kanban-events",
+    "webhook_secret": "seu-secret-pra-validar-assinatura",
+    "webhook_events": [
+      "kanban.item.created",
+      "kanban.item.updated",
+      "kanban.item.stage_changed",
+      "kanban.item.status_changed"
+    ],
+    "config": {
+      "title": "Meu Kanban",
+      "default_view": "kanban",
+      "auto_assignment": false,
+      "notifications_enabled": true,
+      "dragbar_enabled": true,
+      "list_view_enabled": true,
+      "agenda_view_enabled": true
+    }
+  }
+}
+```
+
+| Campo | Descrição |
+| --- | --- |
+| `enabled` | Liga/desliga o módulo Kanban inteiro |
+| `webhook_url` | URL externa que recebe eventos |
+| `webhook_secret` | Usado pra HMAC-SHA256 (validação) |
+| `webhook_events` | Quais eventos disparam o webhook |
+| `config.default_view` | `kanban` ou `list` |
+| `config.auto_assignment` | Atribui automático ao criar card |
+| `config.dragbar_enabled` | Permite drag-and-drop visual |
+
+## Testar webhook
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_config/test_webhook \
+  -H "api_access_token: $TOKEN"
+```
+
+Dispara um POST de teste com payload simulado pra validar que sua URL está respondendo.
+
+---
+
+## Automações por etapa
+
+Existem **3 variantes** de endpoint pra automações — todas funcionam, mas a primeira é a recomendada.
+
+### 1. Escopo de conta (recomendado)
+
+| Método | Endpoint | Descrição |
+| --- | --- | --- |
+| `GET` | `/kanban/automations` | Lista automações |
+| `GET` | `/kanban/automations/:id` | Detalhe |
+| `POST` | `/kanban/automations` | Cria |
+| `PATCH` `PUT` | `/kanban/automations/:id` | Atualiza |
+| `DELETE` | `/kanban/automations/:id` | Exclui |
+
+### 2. Global legado (compatibilidade)
+
+| Método | Endpoint |
+| --- | --- |
+| `GET` | `/api/v1/kanban_automations` |
+| `GET` | `/api/v1/kanban_automations/:id` |
+| `POST` | `/api/v1/kanban_automations` |
+| `PATCH` `PUT` | `/api/v1/kanban_automations/:id` |
+| `DELETE` | `/api/v1/kanban_automations/:id` |
+
+<Warning>
+  Endpoints legados são mantidos por compatibilidade — não recomendados pra integrações novas.
+</Warning>
+
+### 3. Namespace Kanban (funis e etapas)
+
+| Método | Endpoint | Descrição |
+| --- | --- | --- |
+| `GET` | `/kanban/funnels` | Lista funis (alt) |
+| `POST` | `/kanban/funnels` | Cria funil (alt) |
+| `GET` | `/kanban/stages` | Lista etapas de um funil |
+| `POST` | `/kanban/stages` | Cria etapa |
+| `PATCH` `PUT` | `/kanban/stages/:id` | Edita etapa |
+| `DELETE` | `/kanban/stages/:id` | Exclui etapa (mover itens pra `fallback_stage_id`) |
+
+---
+
+## Códigos de resposta esperados
+
+| Código | Significado |
+| --- | --- |
+| `200 OK` | Leitura ou atualização bem-sucedida |
+| `201 Created` | Criação bem-sucedida |
+| `204 No Content` | Exclusão sem corpo |
+| `400 Bad Request` | Payload/parâmetro inválido |
+| `401 Unauthorized` | Token ausente ou inválido |
+| `403 Forbidden` | Sem permissão ou licença |
+| `404 Not Found` | Recurso não encontrado |
+| `422 Unprocessable Entity` | Validação de negócio falhou |
+| `500 Internal Server Error` | Erro inesperado do servidor |

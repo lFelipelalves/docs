@@ -1,0 +1,108 @@
+---
+title: "Autenticação"
+description: "Como autenticar suas requisições na API do LF Connect."
+---
+
+A API do LF Connect usa **token estático** enviado no header de cada requisição.
+Não há OAuth, JWT renovável ou expiração automática — você gera, copia e usa.
+
+## 1. Obter o token
+
+<Steps>
+  <Step title="Entre na plataforma">
+    Acesse [chat.lfautomatiza.com](https://chat.lfautomatiza.com) com sua conta.
+  </Step>
+  <Step title="Abra seu perfil">
+    Clique no avatar no canto inferior esquerdo → **Configurações do perfil**.
+  </Step>
+  <Step title="Copie o Access Token">
+    Role até a seção **Access Token** e clique em **Copiar**. Esse é o token de usuário.
+  </Step>
+</Steps>
+
+<Warning>
+  Trate o token como senha. Nunca commitar em repositório público, nunca expor em
+  código front-end (use proxy backend). Se vazar, vá em **Reset Access Token**
+  pra invalidar o anterior.
+</Warning>
+
+## 2. Enviar nas requisições
+
+Use o header `api_access_token` em toda chamada:
+
+<CodeGroup>
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/conversations \
+  -H "api_access_token: SEU_TOKEN_AQUI" \
+  -H "Content-Type: application/json"
+```
+
+```javascript Node.js
+const res = await fetch(
+  'https://chat.lfautomatiza.com/api/v1/accounts/1/conversations',
+  {
+    headers: {
+      'api_access_token': process.env.LF_CONNECT_TOKEN,
+      'Content-Type': 'application/json'
+    }
+  }
+);
+const data = await res.json();
+```
+
+```python Python
+import os, requests
+
+r = requests.get(
+    'https://chat.lfautomatiza.com/api/v1/accounts/1/conversations',
+    headers={
+        'api_access_token': os.environ['LF_CONNECT_TOKEN'],
+        'Content-Type': 'application/json'
+    }
+)
+print(r.json())
+```
+
+```php PHP
+$ch = curl_init('https://chat.lfautomatiza.com/api/v1/accounts/1/conversations');
+curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    'api_access_token: ' . getenv('LF_CONNECT_TOKEN'),
+    'Content-Type: application/json'
+]);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+```
+</CodeGroup>
+
+## 3. Estrutura das URLs
+
+Quase todos os endpoints são **escopados por conta** (workspace). A URL segue o padrão:
+
+```
+https://chat.lfautomatiza.com/api/v1/accounts/{account_id}/{recurso}
+```
+
+O `account_id` aparece na URL da plataforma assim que você entra na conta:
+`chat.lfautomatiza.com/app/accounts/1/dashboard` → seu `account_id` é `1`.
+
+## 4. Tipos de token
+
+| Tipo | Quem gera | Escopo | Quando usar |
+| --- | --- | --- | --- |
+| **User Access Token** | Cada agente em **Perfil** | Tudo que o agente pode fazer pela UI | Integração padrão |
+| **Agent Bot Access Token** | Admin em **Configurações → Agent Bots** | Apenas inbox vinculada ao bot | Bots externos (n8n, Make) |
+| **Platform App API Key** | Super-admin | Multi-conta (lê/cria contas) | Apenas casos enterprise |
+
+## 5. Respostas de erro
+
+| Código | Significado | O que checar |
+| --- | --- | --- |
+| `401 Unauthorized` | Token ausente ou inválido | Confira header `api_access_token` |
+| `403 Forbidden` | Sem permissão na ação | O usuário do token tem permissão pra esse recurso? |
+| `404 Not Found` | Recurso não existe | `account_id` ou `id` corretos? |
+
+```json Exemplo de erro 401
+{
+  "error": "You need to sign in or sign up before continuing."
+}
+```

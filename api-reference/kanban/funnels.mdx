@@ -1,0 +1,136 @@
+---
+title: "Funis (Funnels)"
+description: "CRUD de funis, métricas por etapa e reordenação."
+---
+
+Funis são os pipelines do seu Kanban. Você pode ter quantos quiser (Vendas SMB,
+Vendas Enterprise, Renovação, Onboarding...), cada um com etapas próprias.
+
+## Endpoints
+
+| Método | Endpoint | Descrição |
+| --- | --- | --- |
+| `GET` | `/funnels` | Lista funis da conta |
+| `GET` | `/funnels/:id` | Detalhe de um funil |
+| `POST` | `/funnels` | Cria funil |
+| `PATCH` `PUT` | `/funnels/:id` | Atualiza funil |
+| `DELETE` | `/funnels/:id` | Remove funil **e todos os itens dele** |
+| `GET` | `/funnels/:id/stage_stats` | Métricas agregadas por etapa |
+| `PATCH` | `/funnels/:id/reorder` | Reordena etapas |
+| `GET` | `/funnels/:funnel_id/kanban_items` | Lista itens deste funil |
+
+<Warning>
+  `DELETE /funnels/:id` é **irreversível** e remove em cascata todos os cards,
+  notas, checklists e anexos vinculados. Considere arquivar via `active: false` em vez de deletar.
+</Warning>
+
+## Criar funil
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/funnels \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "funnel": {
+      "name": "Vendas SMB",
+      "description": "Pipeline comercial pra pequenas e médias empresas",
+      "active": true,
+      "is_default": false,
+      "stages": {
+        "lead": {
+          "id": "lead",
+          "name": "Lead",
+          "color": "#94a3b8",
+          "position": 1,
+          "description": "Primeiro contato"
+        },
+        "qualified": {
+          "id": "qualified",
+          "name": "Qualificado",
+          "color": "#3b82f6",
+          "position": 2,
+          "description": "Passou pelo SDR"
+        },
+        "proposal": {
+          "id": "proposal",
+          "name": "Proposta",
+          "color": "#22c55e",
+          "position": 3,
+          "description": "Oferta enviada"
+        },
+        "won": {
+          "id": "won",
+          "name": "Ganho",
+          "color": "#16a34a",
+          "position": 4
+        },
+        "lost": {
+          "id": "lost",
+          "name": "Perdido",
+          "color": "#dc2626",
+          "position": 5
+        }
+      }
+    }
+  }'
+```
+</CodeGroup>
+
+### Payload completo
+
+```json
+{
+  "funnel": {
+    "name": "Vendas SMB",
+    "description": "Pipeline comercial",
+    "active": true,
+    "is_default": false,
+    "stages": {
+      "lead": {
+        "id": "lead",
+        "name": "Lead",
+        "color": "#94a3b8",
+        "position": 1,
+        "description": "Primeiro contato"
+      }
+    },
+    "settings": {},
+    "global_custom_attributes": []
+  }
+}
+```
+
+### Campos
+
+| Campo | Tipo | Obrigatório | Descrição |
+| --- | --- | --- | --- |
+| `name` | string | ✅ | Nome do funil |
+| `description` | string | | Texto livre |
+| `active` | boolean | | `false` arquiva sem deletar |
+| `is_default` | boolean | | Funil padrão ao abrir Kanban |
+| `stages` | object | ✅ | Mapa de etapas (chave = `id` do stage) |
+| `settings` | object | | Configurações customizadas |
+| `global_custom_attributes` | array | | Atributos válidos pra todos os itens deste funil |
+
+## Reordenar etapas
+
+```bash
+curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/funnels/10/reorder \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "stages": ["proposal", "lead", "qualified", "won", "lost"]
+  }'
+```
+
+A ordem do array é a nova ordem visual. Os IDs precisam existir no funil.
+
+## Métricas por etapa
+
+```bash
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/funnels/10/stage_stats \
+  -H "api_access_token: $TOKEN"
+```
+
+Retorna contagem de cards e valor total por etapa, útil pra dashboards externos.

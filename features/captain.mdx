@@ -1,0 +1,95 @@
+---
+title: "Captain — IA embarcada"
+description: "Assistente, copiloto e automações inteligentes nativas da plataforma."
+---
+
+Captain é a suíte de IA do LF Connect. Funciona em dois modos complementares:
+**Assistente** (atende cliente direto) e **Copiloto** (ajuda o atendente humano).
+
+## Modos
+
+<CardGroup cols={2}>
+  <Card title="Assistente" icon="robot">
+    A IA responde o cliente diretamente. Usa documentos, FAQs e ferramentas (Custom Tools / MCP) pra resolver casos simples antes do humano entrar.
+  </Card>
+  <Card title="Copiloto" icon="wand-magic-sparkles">
+    A IA sugere respostas, traduz, melhora texto, busca no Help Center e analisa o tom da conversa.
+  </Card>
+</CardGroup>
+
+## Provedores de IA suportados
+
+| Provedor | Modelos |
+| --- | --- |
+| OpenAI | GPT-4o, GPT-4, GPT-3.5 |
+| Anthropic | Claude Sonnet, Opus, Haiku |
+| Google | Gemini Pro, Flash |
+| Azure OpenAI | Todos os modelos disponíveis na assinatura |
+| Amazon Bedrock | Claude, Llama, Titan |
+| DeepSeek | DeepSeek Chat, Coder |
+
+A escolha do modelo é **por assistente** — você pode rodar Claude no atendimento
+premium e GPT-3.5 no FAQ comum.
+
+## Como criar um Assistente
+
+<Steps>
+  <Step title="Captain → Assistentes → Criar novo">
+    Em **Menu lateral → Captain → Assistentes**, clique em **Criar novo**.
+  </Step>
+  <Step title="Configure personalidade">
+    Nome, descrição e **prompt de sistema** (define como ele fala, o que pode e não pode dizer).
+  </Step>
+  <Step title="Adicione base de conhecimento">
+    Faça upload de PDFs, Word, texto puro, URLs com sync automático, ou FAQs estruturadas.
+    A busca é por **embeddings** (semântica, não literal).
+  </Step>
+  <Step title="Vincule a uma inbox">
+    Cada inbox aceita 1 assistente. Quando vincular, o assistente atende toda mensagem
+    que cair nela (até o handoff pra humano).
+  </Step>
+  <Step title="Configure handoff">
+    Defina quando passar pro humano: por palavra-chave, por número de tentativas,
+    ou por avaliação do próprio assistente (modo "Avaliado").
+  </Step>
+</Steps>
+
+## Custom Tools (API externa)
+
+O Assistente pode chamar APIs externas durante a conversa. Útil pra:
+
+- Buscar pedido no e-commerce do cliente
+- Consultar status de entrega
+- Marcar reunião direto no calendar
+- Atualizar registro num CRM externo
+
+Suporta `GET`, `POST`, `PUT`, `PATCH`, `DELETE` com payload e headers customizáveis.
+
+## MCP Servers (Model Context Protocol)
+
+Padrão MCP suportado nativamente. Permite usar ferramentas externas
+(servidores MCP) sem código próprio. Atribuição é por assistente, configuração centralizada.
+
+## Copiloto — recursos
+
+- **Sugestões de resposta** baseadas no histórico
+- **Resumo automático** de conversa (útil pra quem assume ticket no meio)
+- **Tradução instantânea** preservando tom
+- **Reescrita**: formal, amigável, profissional
+- **Resumir / expandir / simplificar** mensagem antes de enviar
+- **Busca no Help Center** com inserção de artigo como link na mensagem
+- **Análise de tom** da conversa (cliente irritado? confuso?)
+
+## Transcrição de áudio
+
+Áudios recebidos via WhatsApp são transcritos automaticamente (OpenAI Whisper).
+A transcrição aparece como contexto na conversa — útil quando o atendente está
+em ambiente sem fone ou pra histórico em texto.
+
+## Modos de auto-resolve
+
+| Modo | Comportamento |
+| --- | --- |
+| **Avaliado** | IA decide se resolveu. Se não, escala pro humano. |
+| **Legado** | Timer automático: resolve após X horas sem resposta do cliente. |
+| **Desativado** | Conversa fica aberta indefinidamente. |

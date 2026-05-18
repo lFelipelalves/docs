@@ -1,0 +1,97 @@
+---
+title: "Campanhas em massa"
+description: "Disparos multi-canal com rotação, variáveis dinâmicas e proteção anti-banimento."
+---
+
+Campanhas permitem enviar mensagens em massa para grupos de contatos, com
+controle de velocidade, rotação entre números e variáveis personalizadas.
+
+## Tipos
+
+| Tipo | Quando usar |
+| --- | --- |
+| **Contínua (ongoing)** | Dispara automaticamente baseado em regras (ex: saudação no widget) |
+| **Única (one-off)** | Disparo manual pra grupo definido (promoção, comunicado, NPS) |
+
+## Audiência
+
+Defina a audiência de uma campanha por:
+
+- Contatos individuais (selecionados na hora)
+- Por etiqueta (todas as labels marcadas)
+- Combinação (label + filtro adicional)
+- Deduplicação automática (mesmo contato em 2 labels = 1 envio só)
+
+## Variáveis dinâmicas
+
+Insira `{{nome}}`, `{{empresa}}`, `{{atributo_customizado}}` no corpo da mensagem.
+A plataforma substitui em runtime pra cada contato.
+
+```
+Olá {{nome}}, vi que você é da {{empresa}}. Tudo bem?
+```
+
+## Spintax (variações automáticas)
+
+Use `{olá|oi|e aí}` pra que cada envio tenha uma variação aleatória.
+Reduz padrão e diminui risco de filtro de spam.
+
+```
+{Olá|Oi|E aí} {{nome}}! {Tudo bem|Como vai}?
+```
+
+## Multi-inbox e rotação
+
+Campanhas em planos com múltiplos números WhatsApp distribuem envios
+**automaticamente entre as inboxes**:
+
+- Rotação round-robin
+- Limite configurável por linha
+- Pausa automática se uma linha atingir threshold
+
+<Tip>
+  Pra alto volume, configure **3-4 números WhatsApp** em rotação. Cada um envia ~1/3
+  do volume total, reduzindo proporcionalmente o risco de bloqueio.
+</Tip>
+
+## Controle de velocidade
+
+| Configuração | Recomendação |
+| --- | --- |
+| Intervalo entre mensagens | 5-15 segundos (aleatório) |
+| Pausa a cada N envios | 50 envios → 2 min de pausa |
+| Velocidade máxima | 30 msg/min por inbox |
+| Janela operacional | Horário comercial da inbox |
+
+## Templates HSM (WhatsApp Cloud)
+
+Quando a inbox é **WhatsApp Cloud API**, campanhas one-off precisam usar
+templates HSM **aprovados pela Meta**. A plataforma:
+
+1. Lê os templates já aprovados na sua WABA
+2. Lista no seletor de campanha
+3. Substitui variáveis `{{1}}`, `{{2}}` pelo conteúdo configurado
+
+## Métricas
+
+Durante e após a campanha, acompanhe:
+
+- Audiência total (quantos contatos elegíveis)
+- Enviadas com sucesso
+- Falhadas (com motivo: número inválido, fora da janela 24h, opt-out)
+- Progresso em tempo real + ETA estimado
+- Taxa de resposta (quando o contato responde)
+- CSAT via template (planos enterprise)
+
+## Anti-padrões
+
+<Warning>
+  **Não dispare campanha pra base fria sem opt-in.** Risco de ban é altíssimo, taxa
+  de bloqueio do cliente final passa de 30%, e você queima a reputação do número.
+  Use campanhas só pra base que **já aceitou** receber mensagens.
+</Warning>
+
+- Não envie mais de 1 mensagem por contato no mesmo dia
+- Não use a mesma mensagem 100% idêntica em volume alto (use spintax)
+- Não dispare fora do horário comercial declarado
+- Não inclua link na primeira mensagem pra contato novo (WhatsApp filtra)

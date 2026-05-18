@@ -1,0 +1,104 @@
+---
+title: "Cards (Kanban Items)"
+description: "CRUD de cards no Kanban, com filtros por funil, etapa, agente e conversa."
+---
+
+Cards (chamados internamente de **Kanban Items**) são as unidades do Kanban —
+cada um representa uma oportunidade comercial, vinculada a um contato e a uma conversa.
+
+## Endpoints
+
+| Método | Endpoint | Descrição |
+| --- | --- | --- |
+| `GET` | `/kanban_items` | Lista paginada |
+| `GET` | `/kanban_items/batch` | Lista + metadados agregados (`stage_counts`, `total_items`) |
+| `GET` | `/kanban_items/:id` | Detalhe |
+| `POST` | `/kanban_items` | Cria card |
+| `PATCH` `PUT` | `/kanban_items/:id` | Atualiza card |
+| `DELETE` | `/kanban_items/:id` | Exclui card |
+
+## Filtros suportados
+
+| Parâmetro | Descrição |
+| --- | --- |
+| `funnel_id` | Filtra por funil |
+| `stage_id` | Filtra por etapa |
+| `agent_id` | Filtra por agente atribuído |
+| `conversation_id` | Filtra por conversa vinculada |
+| `page` | Paginação (1-indexed) |
+
+## Listar cards de uma conversa
+
+Use caso clássico: "esse contato tem oportunidade aberta no Kanban?"
+
+```bash
+curl "https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items?conversation_id=12345" \
+  -H "api_access_token: $TOKEN"
+```
+
+## Criar card
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "kanban_item": {
+      "funnel_id": 10,
+      "funnel_stage": "lead",
+      "position": 1,
+      "conversation_display_id": 12345,
+      "assigned_agents": [7, 11],
+      "item_details": {
+        "title": "Oportunidade ACME",
+        "description": "Follow-up comercial — interesse no Scale",
+        "status": "open",
+        "priority": "high",
+        "value": 1500,
+        "currency": {
+          "symbol": "R$",
+          "code": "BRL",
+          "locale": "pt-BR"
+        },
+        "conversation_id": 12345,
+        "notes": []
+      }
+    }
+  }'
+```
+
+### Campos do payload
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| `funnel_id` | integer | Funil onde o card vive |
+| `funnel_stage` | string | ID da etapa (`lead`, `qualified`, etc.) |
+| `position` | integer | Ordem dentro da etapa |
+| `conversation_display_id` | integer | ID da conversa vinculada |
+| `assigned_agents` | array | IDs dos agentes responsáveis |
+| `item_details.title` | string | Título exibido no card |
+| `item_details.description` | string | Texto livre |
+| `item_details.status` | enum | `open` / `won` / `lost` |
+| `item_details.priority` | enum | `low` / `medium` / `high` / `urgent` |
+| `item_details.value` | number | Valor monetário |
+| `item_details.currency` | object | `symbol`, `code`, `locale` |
+
+## Lote com metadados (batch)
+
+`GET /kanban_items/batch` retorna a lista **mais** estatísticas agregadas, útil
+pra dashboards que mostram contagem por etapa sem precisar de chamada extra:
+
+```bash
+curl "https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/batch?funnel_id=10" \
+  -H "api_access_token: $TOKEN"
+```
+
+Resposta inclui:
+
+```json
+{
+  "data": { "payload": [/* cards */] },
+  "stage_counts": { "lead": 12, "qualified": 8, "proposal": 3 },
+  "total_items": 23
+}
+```

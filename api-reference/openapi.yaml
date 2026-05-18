@@ -1,0 +1,341 @@
+openapi: 3.1.0
+info:
+  title: LF Connect API
+  version: "1.0.0"
+  summary: API REST oficial da plataforma de atendimento omnichannel LF Connect
+  description: |
+    # LF Connect API
+
+    Bem-vindo à documentação oficial da API do **LF Connect** — plataforma de atendimento
+    omnichannel da LF Automatiza.
+
+    Use esta API para:
+    - Criar, listar e atualizar **conversas** e **mensagens**
+    - Gerenciar **contatos** da sua base
+    - Integrar canais (WhatsApp, Instagram, Webchat, E-mail) com seus sistemas
+    - Disparar **eventos via webhook** para automação externa (n8n, Zapier, Make)
+
+    ## Autenticação
+
+    Toda requisição precisa do header `api_access_token` com o token da sua conta.
+    Você encontra o token em **Perfil → Configurações da API** dentro do LF Connect.
+
+    ```bash
+    curl https://app.lfautomatiza.com/api/v1/accounts/1/conversations \
+      -H "api_access_token: SEU_TOKEN_AQUI"
+    ```
+
+    ## Ambiente
+
+    - **Produção:** `https://app.lfautomatiza.com/api/v1`
+    - **Rate limit:** 60 requisições/minuto por token
+
+    ## Suporte
+
+    Dúvidas técnicas: [contato@lfautomacoes.com](mailto:contato@lfautomacoes.com)
+  contact:
+    name: Suporte LF Automatiza
+    email: contato@lfautomacoes.com
+    url: https://lfautomatiza.com
+  license:
+    name: Proprietary
+    url: https://lfautomatiza.com/termos
+
+servers:
+  - url: https://app.lfautomatiza.com/api/v1
+    description: Produção
+
+tags:
+  - name: Conversas
+    description: Gestão de conversas (tickets) de atendimento
+  - name: Mensagens
+    description: Envio e leitura de mensagens dentro de uma conversa
+  - name: Contatos
+    description: Gestão da base de contatos
+  - name: Webhooks
+    description: Eventos disparados pelo LF Connect pra sua URL
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /accounts/{account_id}/conversations:
+    get:
+      tags: [Conversas]
+      summary: Listar conversas
+      description: Retorna a lista paginada de conversas da conta, com filtros opcionais por status, assignee e label.
+      operationId: listConversations
+      parameters:
+        - $ref: "#/components/parameters/AccountId"
+        - name: status
+          in: query
+          description: Filtra por status da conversa
+          schema:
+            type: string
+            enum: [open, resolved, pending, snoozed]
+        - name: assignee_type
+          in: query
+          schema:
+            type: string
+            enum: [me, unassigned, assigned]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        "200":
+          description: Lista de conversas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationList"
+              examples:
+                exemplo:
+                  $ref: "#/components/examples/ConversationListExample"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      tags: [Conversas]
+      summary: Criar conversa
+      description: Cria uma nova conversa associada a um contato e a uma caixa de entrada (inbox).
+      operationId: createConversation
+      parameters:
+        - $ref: "#/components/parameters/AccountId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [source_id, inbox_id, contact_id]
+              properties:
+                source_id:
+                  type: string
+                  description: Identificador externo da conversa (ex. número WhatsApp)
+                  example: "5511999999999"
+                inbox_id:
+                  type: integer
+                  example: 1
+                contact_id:
+                  type: integer
+                  example: 42
+                status:
+                  type: string
+                  enum: [open, pending]
+                  default: open
+      responses:
+        "200":
+          description: Conversa criada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /accounts/{account_id}/conversations/{conversation_id}/messages:
+    post:
+      tags: [Mensagens]
+      summary: Enviar mensagem
+      description: Envia uma nova mensagem dentro de uma conversa existente. Suporta texto, anexos e templates do WhatsApp Business.
+      operationId: sendMessage
+      parameters:
+        - $ref: "#/components/parameters/AccountId"
+        - name: conversation_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 123
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+                  description: Texto da mensagem
+                  example: "Olá! Em que posso ajudar?"
+                message_type:
+                  type: string
+                  enum: [outgoing, incoming, template]
+                  default: outgoing
+                private:
+                  type: boolean
+                  description: Se for true, é nota interna (não visível ao cliente)
+                  default: false
+      responses:
+        "200":
+          description: Mensagem enviada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /accounts/{account_id}/contacts:
+    post:
+      tags: [Contatos]
+      summary: Criar contato
+      description: Cadastra um novo contato na base. Útil pra importação em lote ou integração com CRM externo.
+      operationId: createContact
+      parameters:
+        - $ref: "#/components/parameters/AccountId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [inbox_id]
+              properties:
+                inbox_id:
+                  type: integer
+                  example: 1
+                name:
+                  type: string
+                  example: "Carlos Antônio"
+                phone_number:
+                  type: string
+                  example: "+5521999544338"
+                email:
+                  type: string
+                  format: email
+                  example: "carlos@empresa.com.br"
+                identifier:
+                  type: string
+                  description: ID externo (ex. ID do contato no seu CRM)
+      responses:
+        "200":
+          description: Contato criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contact"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: api_access_token
+      description: Token de acesso disponível em Perfil → Configurações da API
+
+  parameters:
+    AccountId:
+      name: account_id
+      in: path
+      required: true
+      description: ID da conta no LF Connect
+      schema:
+        type: integer
+      example: 1
+
+  responses:
+    Unauthorized:
+      description: Token inválido ou ausente
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Access denied"
+
+  examples:
+    ConversationListExample:
+      value:
+        data:
+          meta:
+            all_count: 2
+            mine_count: 1
+          payload:
+            - id: 123
+              status: open
+              contact:
+                name: "Carlos Antônio"
+                phone_number: "+5521999544338"
+              messages_count: 4
+
+  schemas:
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 123
+        status:
+          type: string
+          enum: [open, resolved, pending, snoozed]
+        inbox_id:
+          type: integer
+        contact:
+          $ref: "#/components/schemas/Contact"
+        created_at:
+          type: integer
+          description: Timestamp Unix
+        messages_count:
+          type: integer
+
+    ConversationList:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            meta:
+              type: object
+              properties:
+                all_count:
+                  type: integer
+                mine_count:
+                  type: integer
+            payload:
+              type: array
+              items:
+                $ref: "#/components/schemas/Conversation"
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 4567
+        content:
+          type: string
+        message_type:
+          type: string
+          enum: [outgoing, incoming, template]
+        private:
+          type: boolean
+        created_at:
+          type: integer
+        conversation_id:
+          type: integer
+
+    Contact:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 42
+        name:
+          type: string
+          example: "Carlos Antônio"
+        phone_number:
+          type: string
+          example: "+5521999544338"
+        email:
+          type: string
+          example: "carlos@empresa.com.br"
+        identifier:
+          type: string

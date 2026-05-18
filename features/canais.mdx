@@ -1,0 +1,81 @@
+---
+title: "Canais de atendimento"
+description: "Todos os canais que o LF Connect centraliza em uma única caixa de entrada."
+---
+
+LF Connect é **omnichannel de verdade**: WhatsApp, Instagram, Facebook, Webchat,
+E-mail e Telegram caem numa caixa única, com o histórico do cliente preservado
+entre canais.
+
+## Visão geral
+
+<CardGroup cols={3}>
+  <Card title="WhatsApp" icon="whatsapp">
+    QR Code (WAHA) ou Cloud API oficial Meta
+  </Card>
+  <Card title="Instagram DM" icon="instagram">
+    Direct, respostas a stories, menções
+  </Card>
+  <Card title="Facebook Messenger" icon="facebook">
+    Múltiplas páginas em uma só caixa
+  </Card>
+  <Card title="Webchat" icon="comment-dots">
+    Widget customizável no site
+  </Card>
+  <Card title="E-mail" icon="envelope">
+    Gmail, Outlook ou IMAP/SMTP próprio
+  </Card>
+  <Card title="Telegram" icon="telegram">
+    Bots, grupos, multimídia
+  </Card>
+</CardGroup>
+
+## WhatsApp — provedores disponíveis
+
+O LF Connect suporta **vários backends de WhatsApp**. A escolha depende do volume e
+do perfil do cliente:
+
+| Provedor | Quando usar | Custo extra | Risco de ban |
+| --- | --- | --- | --- |
+| **WAHA Plus (GOWS)** | Início, volumes médios, sem templates HSM | Licença WAHA Plus | Baixo (com proxy mobile dedicado) |
+| **WhatsApp Cloud API** | Volumes altos, templates aprovados, enterprise | Por conversa (Meta) | Zero (oficial) |
+| **Evolution API** | Conexão direta, sem janela 24h, sem templates | Servidor próprio | Médio |
+| **UazAPI** | Preço competitivo, conexão flexível | Por linha | Médio |
+
+<Info>
+  Para LF Connect SaaS, o padrão é **WAHA Plus** no plano Growth/Scale e
+  **Cloud API** no plano Infinity (quando o cliente tem conta business verificada
+  na Meta).
+</Info>
+
+## Janelas de atendimento por canal
+
+Cada canal tem sua regra. Conhecer isso evita bloqueio e mensagens descartadas:
+
+| Canal | Janela de resposta | Permite proativa? |
+| --- | --- | --- |
+| WhatsApp (oficial) | 24h após última mensagem do cliente | Só com template HSM aprovado |
+| Instagram Direct | 7 dias | Não (só responder) |
+| Facebook Messenger | 24h + tags MESSAGE_TAG | Com tag aprovada |
+| Webchat | Sem janela | Sim (proatividade via campanha) |
+| E-mail | Sem janela | Sim |
+| Telegram | Sem janela | Sim |
+
+## Limites de mídia (WhatsApp)
+
+| Tipo | Limite |
+| --- | --- |
+| Imagem | 5 MB |
+| Áudio | 16 MB |
+| Vídeo | 32 MB |
+| Documento | 100 MB |
+| Sticker | 500 KB |
+
+## Múltiplas linhas WhatsApp (multi-inbox)
+
+Planos a partir do **Scale** suportam mais de 1 número WhatsApp:
+
+- Cada número vira uma **inbox** independente
+- Atendentes podem ser atribuídos a inboxes específicas (ex: vendas, suporte)
+- Campanhas em massa fazem **rotação automática** entre inboxes pra dilui risco de ban
+- Métricas separadas por número no painel de relatórios

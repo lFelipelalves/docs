@@ -1,0 +1,75 @@
+---
+title: "Bem-vindo ao LF Connect"
+description: "Plataforma de atendimento omnichannel, helpdesk automático e central multi-atendente da LF Automatiza."
+---
+
+<Note>
+  Esta é a documentação técnica e operacional do **LF Connect**. Se você procura
+  informações comerciais, preços ou demonstração, acesse
+  [lfautomatiza.com](https://lfautomatiza.com).
+</Note>
+
+## O que é o LF Connect
+
+LF Connect é a plataforma de atendimento que centraliza **WhatsApp, Instagram, Facebook,
+Webchat, E-mail e Telegram** em uma única caixa de entrada operada por sua equipe — com
+distribuição automática, automações, IA embarcada e Kanban comercial.
+
+<CardGroup cols={2}>
+  <Card title="Canais" icon="messages" href="/features/canais">
+    WhatsApp, Instagram, Facebook, Webchat, E-mail e Telegram unificados.
+  </Card>
+  <Card title="Captain (IA)" icon="robot" href="/features/captain">
+    Assistente e copiloto de IA pra atender automaticamente e sugerir respostas.
+  </Card>
+  <Card title="Kanban Comercial" icon="kanban" href="/features/kanban">
+    Funis configuráveis vinculados ao chat real do cliente.
+  </Card>
+  <Card title="Campanhas" icon="bullhorn" href="/features/campanhas">
+    Disparos em massa multi-canal com rotação e proteção anti-banimento.
+  </Card>
+</CardGroup>
+
+## Começando pela API
+
+Toda a plataforma é controlável via API REST. Os fluxos mais comuns:
+
+<Steps>
+  <Step title="Pegue seu token">
+    Em **Perfil → Configurações da API** dentro da plataforma. Veja [Autenticação](/essentials/authentication).
+  </Step>
+  <Step title="Faça sua primeira chamada">
+    Liste conversas, envie mensagens, mova cards no Kanban — todos os endpoints estão na [referência da API](/api-reference/introduction).
+  </Step>
+  <Step title="Configure webhooks">
+    Receba eventos em tempo real (mensagem recebida, conversa criada, item Kanban movido)
+    pra automatizar seu fluxo. Veja [Webhooks](/essentials/webhooks).
+  </Step>
+</Steps>
+
+## Stack do produto
+
+LF Connect roda em infraestrutura própria, isolada na Hetzner (Alemanha). Sem ambiente
+compartilhado, sem dependência de provedores que repassam custo por mensagem.
+
+| Componente | Tecnologia |
+| --- | --- |
+| Backend | Ruby on Rails (base MEGA / Chatwoot fork v4.13+) |
+| Banco principal | PostgreSQL 17 + pgvector |
+| Fila e cache | Redis 7.4 + Sidekiq (3 workers especializados) |
+| WhatsApp | WAHA Plus (GOWS) ou WhatsApp Cloud API (Tech Provider Meta) |
+| Storage de mídia | AWS S3 (bucket dedicado por workspace) |
+| IA | OpenAI (GPT-4o), Anthropic (Claude), Google (Gemini), Azure OpenAI, Bedrock, DeepSeek |
+
+## Suporte
+
+Para dúvidas técnicas, integrações ou solicitação de homologação:
+
+<CardGroup cols={2}>
+  <Card title="WhatsApp" icon="whatsapp" href="https://wa.me/5511936233536">
+    +55 11 93623-3536
+  </Card>
+  <Card title="E-mail" icon="envelope" href="mailto:contato@lfautomacoes.com">
+    contato@lfautomacoes.com
+  </Card>
+</CardGroup>
