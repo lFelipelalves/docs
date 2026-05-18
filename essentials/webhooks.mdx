@@ -19,8 +19,8 @@ LF Connect chama ela toda vez que um evento acontece.
     Informe a URL, selecione os eventos e (opcionalmente) defina um secret.
   </Step>
   <Step title="Valide a assinatura">
-    Se configurou secret, todo POST vem com header `X-Chatwoot-Signature` —
-    HMAC-SHA256 do payload com sua secret. Sempre valide antes de processar.
+    Se configurou secret, todo POST vem com header de assinatura
+    (HMAC-SHA256 do payload com sua secret). Sempre valide antes de processar.
   </Step>
 </Steps>
 

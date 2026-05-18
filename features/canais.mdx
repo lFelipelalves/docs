@@ -11,7 +11,7 @@ entre canais.
 
 <CardGroup cols={3}>
   <Card title="WhatsApp" icon="whatsapp">
-    QR Code (WAHA) ou Cloud API oficial Meta
+    Conexão direta ou via Cloud API oficial Meta
   </Card>
   <Card title="Instagram DM" icon="instagram">
     Direct, respostas a stories, menções
@@ -23,30 +23,12 @@ entre canais.
     Widget customizável no site
   </Card>
   <Card title="E-mail" icon="envelope">
-    Gmail, Outlook ou IMAP/SMTP próprio
+    Conecte qualquer caixa via IMAP/SMTP
   </Card>
   <Card title="Telegram" icon="telegram">
     Bots, grupos, multimídia
   </Card>
 </CardGroup>
-
-## WhatsApp — provedores disponíveis
-
-O LF Connect suporta **vários backends de WhatsApp**. A escolha depende do volume e
-do perfil do cliente:
-
-| Provedor | Quando usar | Custo extra | Risco de ban |
-| --- | --- | --- | --- |
-| **WAHA Plus (GOWS)** | Início, volumes médios, sem templates HSM | Licença WAHA Plus | Baixo (com proxy mobile dedicado) |
-| **WhatsApp Cloud API** | Volumes altos, templates aprovados, enterprise | Por conversa (Meta) | Zero (oficial) |
-| **Evolution API** | Conexão direta, sem janela 24h, sem templates | Servidor próprio | Médio |
-| **UazAPI** | Preço competitivo, conexão flexível | Por linha | Médio |
-
-<Info>
-  Para LF Connect SaaS, o padrão é **WAHA Plus** no plano Growth/Scale e
-  **Cloud API** no plano Infinity (quando o cliente tem conta business verificada
-  na Meta).
-</Info>
 
 ## Janelas de atendimento por canal
 

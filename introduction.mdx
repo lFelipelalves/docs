@@ -47,20 +47,6 @@ Toda a plataforma é controlável via API REST. Os fluxos mais comuns:
   </Step>
 </Steps>
 
-## Stack do produto
-
-LF Connect roda em infraestrutura própria, isolada na Hetzner (Alemanha). Sem ambiente
-compartilhado, sem dependência de provedores que repassam custo por mensagem.
-
-| Componente | Tecnologia |
-| --- | --- |
-| Backend | Ruby on Rails (base MEGA / Chatwoot fork v4.13+) |
-| Banco principal | PostgreSQL 17 + pgvector |
-| Fila e cache | Redis 7.4 + Sidekiq (3 workers especializados) |
-| WhatsApp | WAHA Plus (GOWS) ou WhatsApp Cloud API (Tech Provider Meta) |
-| Storage de mídia | AWS S3 (bucket dedicado por workspace) |
-| IA | OpenAI (GPT-4o), Anthropic (Claude), Google (Gemini), Azure OpenAI, Bedrock, DeepSeek |
-
 ## Suporte
 
 Para dúvidas técnicas, integrações ou solicitação de homologação:
