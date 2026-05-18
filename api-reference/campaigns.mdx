@@ -1,0 +1,156 @@
+---
+title: "Campanhas"
+description: "Disparos automáticos (ongoing) e em massa (one-off) via API."
+---
+
+Campanhas permitem disparar mensagens em massa pra grupos de contatos. Existem dois tipos:
+
+- **Ongoing** — dispara automaticamente quando um visitante atinge regras configuradas (ex: passou X tempo no site)
+- **One-off** — disparo manual pra audiência definida na hora
+
+## Listar campanhas
+
+```http
+GET /api/v1/accounts/{account_id}/campaigns
+```
+
+```bash
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/campaigns \
+  -H "api_access_token: $TOKEN"
+```
+
+## Criar campanha **ongoing** (widget)
+
+```http
+POST /api/v1/accounts/{account_id}/campaigns
+```
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/campaigns \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Saudação na página de preços",
+    "message": "Oi! Está com dúvida sobre os planos? Posso ajudar.",
+    "inbox_id": 2,
+    "sender_id": 7,
+    "trigger_only_during_business_hours": true,
+    "trigger_rules": {
+      "url": "https://lfautomatiza.com/precos",
+      "time_on_page": 30
+    }
+  }'
+```
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| `title` | string | Nome interno da campanha |
+| `message` | string | Texto enviado |
+| `inbox_id` | integer | Webchat inbox |
+| `sender_id` | integer | Agente que aparece como remetente |
+| `trigger_only_during_business_hours` | boolean | Só dispara em horário comercial |
+| `trigger_rules.url` | string | URL exata onde dispara |
+| `trigger_rules.time_on_page` | integer | Segundos no site antes de disparar |
+
+## Criar campanha **one-off** (envio em massa)
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/campaigns \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Promoção Mai/2026",
+    "message": "Oi {{contact.name}}, temos uma novidade pra você!",
+    "inbox_id": 1,
+    "campaign_type": "one_off",
+    "audience": [
+      { "type": "Label", "id": 1 },
+      { "type": "Label", "id": 2 }
+    ],
+    "scheduled_at": "2026-05-20T10:00:00-03:00"
+  }'
+```
+
+| Campo | Descrição |
+| --- | --- |
+| `campaign_type` | `one_off` ou `ongoing` |
+| `audience` | Array de Label IDs (combina via OR) |
+| `scheduled_at` | ISO 8601 — quando disparar (ou omita pra disparar na hora) |
+| `message` | Suporta `{{contact.name}}`, `{{contact.email}}`, `{{contact.custom_attributes.xxx}}` |
+
+## Variáveis disponíveis na mensagem
+
+| Variável | Valor |
+| --- | --- |
+| `{{contact.name}}` | Nome do contato |
+| `{{contact.email}}` | E-mail |
+| `{{contact.phone_number}}` | Telefone |
+| `{{contact.identifier}}` | ID externo |
+| `{{contact.custom_attributes.X}}` | Valor de um atributo personalizado |
+
+## Spintax (variações de texto)
+
+Pra reduzir padrão e diminuir filtro anti-spam:
+
+```
+{Olá|Oi|E aí} {{contact.name}}! Temos {uma novidade|um aviso|uma oferta} pra você.
+```
+
+A plataforma escolhe aleatoriamente uma das alternativas em cada envio.
+
+## Detalhe da campanha
+
+```http
+GET /api/v1/accounts/{account_id}/campaigns/{id}
+```
+
+Retorna status atual, audiência total, enviadas com sucesso, falhadas, e ETA quando aplicável.
+
+## Atualizar campanha
+
+```http
+PATCH /api/v1/accounts/{account_id}/campaigns/{id}
+```
+
+Só funciona enquanto a campanha está em `draft` ou `paused`. Campanhas em execução
+não podem ser editadas.
+
+## Pausar / retomar campanha
+
+```http
+POST /api/v1/accounts/{account_id}/campaigns/{id}/pause
+POST /api/v1/accounts/{account_id}/campaigns/{id}/resume
+```
+
+Útil pra parar uma campanha já em curso se você detectar algo errado (alta taxa de
+falha, bloqueio, etc.).
+
+## Excluir campanha
+
+```http
+DELETE /api/v1/accounts/{account_id}/campaigns/{id}
+```
+
+Só permitido em `draft`. Campanhas executadas viram histórico (preservadas).
+
+## Status da campanha
+
+| Status | Significado |
+| --- | --- |
+| `draft` | Criada mas não disparada ainda |
+| `enabled` | Ativa (ongoing) — disparando conforme triggers |
+| `scheduled` | One-off agendada pra `scheduled_at` |
+| `running` | One-off em execução |
+| `completed` | One-off finalizada |
+| `paused` | Pausada manualmente |
+| `failed` | Falhou globalmente (erro de inbox, sem audiência, etc.) |
+
+## Códigos de resposta
+
+| Código | Quando acontece |
+| --- | --- |
+| `200 OK` | Listagem / leitura / atualização |
+| `201 Created` | Campanha criada |
+| `204 No Content` | Pausada / retomada / excluída |
+| `403 Forbidden` | Sem permissão (apenas admin) |
+| `422 Unprocessable Entity` | Inbox inválida ou audiência vazia |

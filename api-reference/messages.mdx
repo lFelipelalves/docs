@@ -1,0 +1,212 @@
+---
+title: "Mensagens"
+description: "Enviar, listar, editar e excluir mensagens dentro de uma conversa."
+---
+
+Mensagens vivem **dentro de uma conversa**. Todo endpoint é escopado tanto pela conta
+quanto pela conversa:
+
+```
+/api/v1/accounts/{account_id}/conversations/{conversation_id}/messages
+```
+
+## Listar mensagens
+
+```http
+GET /api/v1/accounts/{account_id}/conversations/{conversation_id}/messages
+```
+
+| Parâmetro | Descrição |
+| --- | --- |
+| `before` | ID de mensagem — retorna mensagens **anteriores** a essa (paginação) |
+| `after` | ID de mensagem — retorna mensagens posteriores |
+
+```bash
+curl "https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/messages" \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta
+
+```json
+{
+  "meta": {
+    "labels": [],
+    "additional_attributes": {},
+    "contact": { "id": 542, "name": "Carlos Antônio" },
+    "assignee": { "id": 7, "name": "Sabrina" }
+  },
+  "payload": [
+    {
+      "id": 7821,
+      "content": "Olá! Tenho interesse no plano Scale.",
+      "account_id": 1,
+      "inbox_id": 1,
+      "conversation_id": 1287,
+      "message_type": "incoming",
+      "content_type": "text",
+      "status": "received",
+      "created_at": 1715972350,
+      "private": false,
+      "source_id": "wamid.HBgN...",
+      "sender": {
+        "id": 542,
+        "name": "Carlos Antônio",
+        "type": "contact"
+      },
+      "attachments": []
+    }
+  ]
+}
+```
+
+## Enviar mensagem (texto)
+
+```http
+POST /api/v1/accounts/{account_id}/conversations/{conversation_id}/messages
+```
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| `content` | string | Texto da mensagem |
+| `message_type` | enum | `outgoing` (padrão) ou `incoming` |
+| `private` | boolean | `true` = nota interna (invisível ao cliente) |
+| `content_type` | enum | `text`, `input_select`, `cards`, `form` |
+| `content_attributes` | object | Metadata adicional (varia por `content_type`) |
+| `template_params` | object | Parâmetros pra templates aprovados |
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/messages \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "Sua proposta foi aprovada! Confira o PDF anexo.",
+    "message_type": "outgoing",
+    "private": false
+  }'
+```
+
+## Enviar mensagem com anexo
+
+Use multipart quando precisar enviar arquivo:
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/messages \
+  -H "api_access_token: $TOKEN" \
+  -F "content=Segue o contrato" \
+  -F "message_type=outgoing" \
+  -F "attachments[]=@contrato.pdf"
+```
+
+Múltiplos anexos: repita o campo `attachments[]`.
+
+## Enviar template (WhatsApp)
+
+Pra disparos que estão fora da janela de 24h, use um template aprovado:
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/messages \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "",
+    "template_params": {
+      "name": "boas_vindas_pt_br",
+      "language": "pt_BR",
+      "category": "MARKETING",
+      "processed_params": {
+        "1": "Carlos",
+        "2": "Scale"
+      }
+    }
+  }'
+```
+
+| Campo | Descrição |
+| --- | --- |
+| `name` | Nome do template aprovado na sua conta business |
+| `language` | Código de idioma (`pt_BR`, `en_US`, etc.) |
+| `category` | `MARKETING`, `UTILITY`, `AUTHENTICATION` |
+| `processed_params.{n}` | Substitui o placeholder `{{n}}` do template |
+
+## Nota privada
+
+Notas privadas ficam visíveis apenas para os atendentes — o cliente nunca vê:
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/messages \
+  -H "api_access_token: $TOKEN" \
+  -d '{
+    "content": "Cliente pediu desconto. Aprovei até 10% — não passe disso.",
+    "private": true
+  }'
+```
+
+## Mensagem interativa (cards)
+
+Disponível em canais que suportam (Webchat, Telegram):
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/messages \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "Escolha um plano:",
+    "content_type": "input_select",
+    "content_attributes": {
+      "items": [
+        { "title": "Growth - R$ 347", "value": "growth" },
+        { "title": "Scale - R$ 597", "value": "scale" },
+        { "title": "Infinity - R$ 997", "value": "infinity" }
+      ]
+    }
+  }'
+```
+
+## Excluir mensagem
+
+```http
+DELETE /api/v1/accounts/{account_id}/conversations/{conversation_id}/messages/{id}
+```
+
+```bash
+curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/messages/7821 \
+  -H "api_access_token: $TOKEN"
+```
+
+<Note>
+  A mensagem não é apagada de fato — fica como "Mensagem excluída"
+  com um placeholder configurável por inbox. O cliente vê esse placeholder.
+</Note>
+
+## Tipos de mensagem
+
+| `message_type` | Quem envia | Visibilidade |
+| --- | --- | --- |
+| `incoming` | Cliente para a plataforma | Todos veem |
+| `outgoing` | Plataforma para o cliente | Todos veem |
+| `activity` | Sistema (atribuição, status mudou) | Atendentes veem |
+| `template` | Plataforma para o cliente, via template | Todos veem |
+
+## Status de entrega
+
+Campo `status` da mensagem:
+
+| Status | Significado |
+| --- | --- |
+| `sent` | Saiu da plataforma |
+| `delivered` | Entregue ao dispositivo do destinatário |
+| `read` | Cliente leu (se canal suporta) |
+| `failed` | Falhou — confira `external_error` |
+| `received` | Mensagem recebida (incoming) |
+
+## Códigos de resposta
+
+| Código | Quando acontece |
+| --- | --- |
+| `200 OK` | Lista retornada |
+| `201 Created` | Mensagem enviada |
+| `400 Bad Request` | Payload inválido (ex: anexo grande demais) |
+| `403 Forbidden` | Sem permissão na conversa |
+| `404 Not Found` | Conversa não existe |
+| `422 Unprocessable Entity` | Fora de janela / template inválido |

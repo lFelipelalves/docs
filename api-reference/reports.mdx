@@ -1,0 +1,180 @@
+---
+title: "Relatórios"
+description: "Endpoints de métricas agregadas — conversas, agentes, equipes, inboxes e CSAT."
+---
+
+A API de relatórios retorna métricas agregadas em séries temporais ou totais.
+Endpoints estão no **prefixo `/api/v2/`** (não `/v1/` como o resto).
+
+```
+https://chat.lfautomatiza.com/api/v2/accounts/{account_id}/reports/...
+```
+
+## Sumário geral
+
+```http
+GET /api/v2/accounts/{account_id}/reports/summary
+```
+
+Retorna contadores em tempo real:
+
+```bash
+curl "https://chat.lfautomatiza.com/api/v2/accounts/1/reports/summary?since=1715900000&until=1715972400" \
+  -H "api_access_token: $TOKEN"
+```
+
+```json
+{
+  "open_conversations_count": 47,
+  "agents_online_count": 5,
+  "average_first_response_time": 142,
+  "average_resolution_time": 1843,
+  "average_response_time": 67,
+  "conversations_count": 124,
+  "incoming_messages_count": 387,
+  "outgoing_messages_count": 412,
+  "resolutions_count": 89
+}
+```
+
+| Parâmetro | Descrição |
+| --- | --- |
+| `since` | Timestamp Unix de início |
+| `until` | Timestamp Unix de fim |
+| `type` | `account` (padrão) ou `agent`, `inbox`, `team`, `label` |
+| `id` | ID do recurso quando `type ≠ account` |
+
+## Relatório por conversas (série temporal)
+
+```http
+GET /api/v2/accounts/{account_id}/reports/conversations
+```
+
+```bash
+curl "https://chat.lfautomatiza.com/api/v2/accounts/1/reports/conversations?metric=conversations_count&since=1715900000&until=1715972400&type=account" \
+  -H "api_access_token: $TOKEN"
+```
+
+| Parâmetro | Descrição |
+| --- | --- |
+| `metric` | `conversations_count`, `incoming_messages_count`, `outgoing_messages_count`, `avg_first_response_time`, `avg_resolution_time`, `resolutions_count`, `bot_resolutions_count`, `bot_handoffs_count` |
+| `since` / `until` | Janela de tempo |
+| `type` | `account`, `agent`, `inbox`, `team`, `label` |
+| `id` | Quando `type ≠ account` |
+| `group_by` | `day`, `week`, `month`, `year` |
+| `business_hours` | `true` calcula tempos só dentro do horário comercial |
+
+### Resposta
+
+```json
+[
+  { "value": 14, "timestamp": 1715817600 },
+  { "value": 22, "timestamp": 1715904000 },
+  { "value": 31, "timestamp": 1715990400 }
+]
+```
+
+## Sumário por agente
+
+```http
+GET /api/v2/accounts/{account_id}/reports/agents_summary
+```
+
+Lista cada agente com suas métricas no período.
+
+```bash
+curl "https://chat.lfautomatiza.com/api/v2/accounts/1/reports/agents_summary?since=1715900000&until=1715972400" \
+  -H "api_access_token: $TOKEN"
+```
+
+Retorna por agente: total de conversas, resolvidas, tempo médio de resposta, tempo
+médio de resolução.
+
+## Sumário por inbox
+
+```http
+GET /api/v2/accounts/{account_id}/reports/inboxes_summary
+```
+
+Mesma estrutura mas agrupando por inbox.
+
+## Sumário por equipe
+
+```http
+GET /api/v2/accounts/{account_id}/reports/teams_summary
+```
+
+## Sumário por label
+
+```http
+GET /api/v2/accounts/{account_id}/reports/labels_summary
+```
+
+## Métricas em tempo real
+
+Para dashboards "ao vivo" (não série temporal):
+
+```http
+GET /api/v2/accounts/{account_id}/reports/live/conversations
+GET /api/v2/accounts/{account_id}/reports/live/agents
+```
+
+Retorna estado atual sem agregação histórica.
+
+## CSAT (satisfação)
+
+```http
+GET /api/v2/accounts/{account_id}/reports/conversations_traffic
+GET /api/v2/accounts/{account_id}/csat_reports
+```
+
+```bash
+curl "https://chat.lfautomatiza.com/api/v2/accounts/1/csat_reports?since=1715900000&until=1715972400" \
+  -H "api_access_token: $TOKEN"
+```
+
+Retorna:
+
+```json
+{
+  "metrics": {
+    "total_response_count": 87,
+    "ratings_count": { "1": 2, "2": 4, "3": 12, "4": 28, "5": 41 },
+    "satisfaction_score": 78.16,
+    "response_rate": 64.4
+  },
+  "csat_survey_responses": [
+    { "id": 4521, "rating": 5, "feedback_message": "Atendimento excelente!" }
+  ]
+}
+```
+
+## Relatório de bots (Captain / agent bots)
+
+```http
+GET /api/v2/accounts/{account_id}/reports/bot_metrics
+```
+
+Retorna sessões iniciadas com bot, taxa de auto-resolve, handoffs pra humano, satisfação pós-bot.
+
+## Exportação CSV
+
+A maioria dos endpoints de sumário aceita query `?type=csv` pra retornar arquivo
+em vez de JSON:
+
+```bash
+curl "https://chat.lfautomatiza.com/api/v2/accounts/1/reports/conversations?type=csv&since=..." \
+  -H "api_access_token: $TOKEN" \
+  -o relatorio.csv
+```
+
+CSV vem em **UTF-8 com BOM** e separador `;` — abre direto no Excel BR.
+
+## Códigos de resposta
+
+| Código | Quando acontece |
+| --- | --- |
+| `200 OK` | Métrica retornada |
+| `400 Bad Request` | Janela de tempo inválida ou parâmetro desconhecido |
+| `403 Forbidden` | Apenas administrador acessa relatórios |
+| `422 Unprocessable Entity` | Combinação inválida (ex: `type=agent` sem `id`) |

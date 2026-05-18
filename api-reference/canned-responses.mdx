@@ -1,0 +1,92 @@
+---
+title: "Respostas rápidas"
+description: "Textos pré-definidos que o agente insere com atalho durante o atendimento."
+---
+
+Respostas rápidas (canned responses) são templates de texto que o agente acessa
+digitando `/` na caixa de mensagem. Diferente de macros, **não executam ações** —
+apenas inserem texto.
+
+## Listar
+
+```http
+GET /api/v1/accounts/{account_id}/canned_responses
+```
+
+```bash
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/canned_responses \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta
+
+```json
+[
+  {
+    "id": 1,
+    "short_code": "saudacao",
+    "content": "Olá! Tudo bem? Como posso te ajudar hoje?"
+  },
+  {
+    "id": 2,
+    "short_code": "horario",
+    "content": "Nosso horário de atendimento é seg-sex, 9h-18h."
+  }
+]
+```
+
+## Criar
+
+```http
+POST /api/v1/accounts/{account_id}/canned_responses
+```
+
+| Campo | Tipo | Obrigatório | Descrição |
+| --- | --- | --- | --- |
+| `short_code` | string | ✅ | Atalho (`/saudacao`, `/boleto`). Sem espaço. |
+| `content` | string | ✅ | Texto inserido quando o atalho é usado |
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/canned_responses \
+  -H "api_access_token: $TOKEN" \
+  -d '{
+    "short_code": "encerramento",
+    "content": "Foi um prazer te atender! Se precisar de algo mais, é só chamar."
+  }'
+```
+
+## Variáveis dinâmicas
+
+O `content` aceita placeholders que são substituídos no momento da inserção:
+
+| Variável | Valor |
+| --- | --- |
+| `{{contact.name}}` | Nome do contato |
+| `{{contact.email}}` | E-mail |
+| `{{contact.phone_number}}` | Telefone |
+| `{{conversation.id}}` | ID da conversa |
+| `{{conversation.display_id}}` | Display ID (ticket #) |
+| `{{agent.name}}` | Nome do agente que está enviando |
+
+Exemplo de canned com variáveis:
+
+```
+Olá {{contact.name}}! Você está sendo atendido por {{agent.name}}.
+Seu ticket é #{{conversation.display_id}}.
+```
+
+## Atualizar / excluir
+
+```http
+PATCH  /api/v1/accounts/{account_id}/canned_responses/{id}
+DELETE /api/v1/accounts/{account_id}/canned_responses/{id}
+```
+
+## Códigos de resposta
+
+| Código | Quando acontece |
+| --- | --- |
+| `200 OK` | Listagem / leitura / atualização |
+| `201 Created` | Resposta rápida criada |
+| `204 No Content` | Excluída |
+| `422 Unprocessable Entity` | `short_code` duplicado na conta |

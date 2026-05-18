@@ -4,21 +4,23 @@ description: "Rate limits, quotas e boas práticas de integração com a API do 
 ---
 
 A API do LF Connect aplica limites pra proteger a plataforma e os clientes finais.
-Conheça os números antes de planejar integrações que façam muitas chamadas.
+Conhecer o comportamento esperado evita surpresas em produção.
 
-## Rate limit padrão
+## Como funciona
 
-| Recurso | Limite |
-| --- | --- |
-| Requisições por token | 60 / minuto |
-| Mensagens outbound via WhatsApp | 30 / minuto por inbox |
-| Mensagens via WhatsApp Cloud API | Conforme tier Meta da conta |
-| Upload de mídia (multipart) | 10 / minuto |
-| Importação CSV (contatos / Kanban) | 1 job por vez por conta |
+Limites são aplicados em três dimensões:
+
+1. **Por token de acesso** — protege contra integração mal comportada
+2. **Por conta (workspace)** — protege contra abuso de múltiplos tokens da mesma conta
+3. **Por endereço de origem (IP)** — proteção adicional contra força bruta
+
+Os números exatos podem mudar conforme o plano e o ambiente, então **a fonte da
+verdade são os headers da resposta** — sempre consulte eles em vez de assumir
+valores fixos.
 
 ## Headers de resposta
 
-Toda resposta retorna headers que te ajudam a controlar o ritmo:
+Endpoints sujeitos a rate limit retornam estes headers:
 
 ```http
 X-RateLimit-Limit: 60
@@ -27,12 +29,18 @@ X-RateLimit-Reset: 1715972400
 ```
 
 - **`X-RateLimit-Limit`** — teto da janela atual
-- **`X-RateLimit-Remaining`** — quantas ainda sobram
+- **`X-RateLimit-Remaining`** — quantas chamadas restam
 - **`X-RateLimit-Reset`** — timestamp Unix de quando o contador zera
 
 ## Quando você é bloqueado
 
-Se estourar o limite, recebe **`429 Too Many Requests`**:
+Se estourar o limite, recebe **`429 Too Many Requests`** com header `Retry-After`
+indicando quantos segundos esperar:
+
+```http
+HTTP/1.1 429 Too Many Requests
+Retry-After: 23
+```
 
 ```json
 {
@@ -40,15 +48,21 @@ Se estourar o limite, recebe **`429 Too Many Requests`**:
 }
 ```
 
-<Warning>
-  Não tente "burlar" rate limit com múltiplos tokens do mesmo usuário —
-  o sistema rastreia também por IP e por conta. Em vez disso, [fale com nossa
-  equipe](mailto:contato@lfautomacoes.com) sobre seu caso de uso.
-</Warning>
+<Tip>
+  Sempre respeite o `Retry-After` em vez de chutar tempos de espera. Implementar
+  backoff exponencial em cima dele é a forma mais robusta de lidar com 429.
+</Tip>
+
+## Limites de envio por canal
+
+Independente de rate limit da API, cada canal de mensageria tem suas próprias regras
+externas (definidas pelas plataformas Meta/WhatsApp/Instagram). A plataforma
+respeita essas regras automaticamente — mensagens que violariam (ex: fora da janela
+de 24h sem template aprovado) são rejeitadas antes de chegar no provedor.
 
 ## Limites de mídia
 
-Quando enviar anexos via API, respeite os tetos do WhatsApp:
+Anexos seguem os limites do canal de destino:
 
 | Tipo de mídia | Limite |
 | --- | --- |
@@ -62,21 +76,31 @@ Quando enviar anexos via API, respeite os tetos do WhatsApp:
 
 <AccordionGroup>
   <Accordion title="Use webhooks em vez de polling">
-    Não fique chamando `GET /conversations` a cada 5 segundos esperando uma mensagem nova.
-    Configure um [webhook](/essentials/webhooks) e seja notificado quando acontecer.
+    Não fique chamando `GET /conversations` a cada poucos segundos esperando
+    novidades. Configure um [webhook](/essentials/webhooks) e reaja a eventos.
   </Accordion>
   <Accordion title="Faça batch nas operações em massa">
-    Pra mover 100 cards no Kanban, use o endpoint `bulk_move_items` em vez de 100 chamadas individuais.
+    Pra mover 100 cards no Kanban, use o endpoint `bulk_move_items` em vez de
+    100 chamadas individuais.
   </Accordion>
   <Accordion title="Cacheie identificadores estáticos">
-    `account_id`, `inbox_id`, `funnel_id`, `team_id` quase nunca mudam. Carregue 1 vez no startup do seu serviço e reuse.
+    `account_id`, `inbox_id`, `funnel_id`, `team_id` quase nunca mudam.
+    Carregue 1 vez no startup do seu serviço e reutilize.
   </Accordion>
-  <Accordion title="Respeite o `Retry-After`">
-    Quando receber 429, o header `Retry-After` te diz exatamente em segundos quando voltar a tentar. Use isso, não chute.
+  <Accordion title="Implemente backoff exponencial">
+    Quando receber 429, dobre o tempo de espera a cada tentativa
+    (1s → 2s → 4s → 8s) até `Retry-After` ser respeitado. Evita
+    martelar o sistema enquanto você ainda está bloqueado.
+  </Accordion>
+  <Accordion title="Não distribua o token em múltiplos clientes">
+    Cada token está vinculado a um agente. Distribuir o mesmo token entre
+    workers paralelos não aumenta capacidade — só faz o limite por usuário
+    estourar mais rápido.
   </Accordion>
 </AccordionGroup>
 
-## Conta enterprise
+## Precisa de mais?
 
-Clientes do plano **Infinity** ou enterprise customizado podem solicitar **rate limit estendido**
-e SLA de uptime contratual. Fale com nosso comercial.
+Se sua integração tem requisitos específicos (alto volume, SLA contratual de
+latência ou disponibilidade), fale com a equipe pra avaliarmos o caso —
+[contato@lfautomacoes.com](mailto:contato@lfautomacoes.com).

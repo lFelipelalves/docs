@@ -1,0 +1,161 @@
+---
+title: "Webhooks (gestão via API)"
+description: "Criar, listar e remover webhooks da conta programaticamente."
+---
+
+Esta página cobre **a gestão dos webhooks** via API — como cadastrar URLs receptoras
+e gerenciar suas configurações. Para entender os **eventos** que esses webhooks
+recebem (payload, retry, validação de assinatura), veja [Webhooks](/essentials/webhooks).
+
+## Listar webhooks
+
+```http
+GET /api/v1/accounts/{account_id}/webhooks
+```
+
+```bash
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/webhooks \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta
+
+```json
+{
+  "payload": [
+    {
+      "id": 1,
+      "url": "https://meu-n8n.com/webhook/lf-events",
+      "account_id": 1,
+      "subscriptions": ["conversation_created", "message_created"]
+    }
+  ]
+}
+```
+
+## Criar webhook
+
+```http
+POST /api/v1/accounts/{account_id}/webhooks
+```
+
+| Campo | Tipo | Obrigatório | Descrição |
+| --- | --- | --- | --- |
+| `url` | string | ✅ | HTTPS, público, retorna 200 em <5s |
+| `subscriptions` | array | ✅ | Lista de eventos que esse webhook recebe |
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/webhooks \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://meu-n8n.com/webhook/lf-events",
+    "subscriptions": [
+      "conversation_created",
+      "message_created",
+      "conversation_status_changed"
+    ]
+  }'
+```
+
+### Eventos disponíveis pra subscription
+
+#### Conversas
+- `conversation_created`
+- `conversation_status_changed`
+- `conversation_updated`
+- `conversation_resolved`
+- `conversation_typing_on`
+- `conversation_typing_off`
+
+#### Mensagens
+- `message_created`
+- `message_updated`
+
+#### Contatos
+- `contact_created`
+- `contact_updated`
+
+#### Widget
+- `webwidget_triggered`
+
+#### Kanban
+- `kanban.item.created`
+- `kanban.item.updated`
+- `kanban.item.stage_changed`
+- `kanban.item.status_changed`
+
+## Atualizar webhook
+
+```http
+PATCH /api/v1/accounts/{account_id}/webhooks/{id}
+```
+
+```bash
+curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/webhooks/1 \
+  -H "api_access_token: $TOKEN" \
+  -d '{
+    "subscriptions": ["message_created"]
+  }'
+```
+
+Atualizar `subscriptions` substitui completamente a lista anterior.
+
+## Excluir webhook
+
+```http
+DELETE /api/v1/accounts/{account_id}/webhooks/{id}
+```
+
+```bash
+curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/webhooks/1 \
+  -H "api_access_token: $TOKEN"
+```
+
+## Webhook secret (validação de assinatura)
+
+Quando configurar secret via UI, todo POST vem com header de assinatura
+HMAC-SHA256. Veja [Webhooks → Verificação de assinatura](/essentials/webhooks#verificação-de-assinatura)
+para o código de validação em Node.js, Python, etc.
+
+## Comportamento de retry
+
+Se sua URL não retornar `2xx` em até 5s, há retentativa:
+
+| Tentativa | Espera |
+| --- | --- |
+| 1ª retry | 30s depois |
+| 2ª retry | 2min depois |
+| 3ª retry | 10min depois |
+| Após 3 falhas | Descartado |
+
+Não há fila persistente — você é responsável por absorver o evento com sucesso na sua URL.
+
+## Boas práticas
+
+<AccordionGroup>
+  <Accordion title="URL receptora deve ser idempotente">
+    Em caso de retry, sua URL pode receber o mesmo evento mais de uma vez. Use o
+    `id` do payload pra deduplicar e evitar processamento duplicado.
+  </Accordion>
+  <Accordion title="Responda rápido — processe depois">
+    Sua URL deve só receber, validar assinatura e empilhar em fila própria
+    (SQS, Bull, Redis Stream). Processar de forma síncrona dentro do webhook
+    é o caminho mais rápido pra perder evento por timeout.
+  </Accordion>
+  <Accordion title="Separe webhooks por uso">
+    Em vez de 1 webhook subscrito a 15 eventos, considere 3 webhooks subscrevendo
+    aos eventos por área (vendas, suporte, financeiro). Mais fácil de monitorar
+    e desligar parcialmente em caso de problema.
+  </Accordion>
+</AccordionGroup>
+
+## Códigos de resposta
+
+| Código | Quando acontece |
+| --- | --- |
+| `200 OK` | Listagem / leitura |
+| `201 Created` | Webhook criado |
+| `204 No Content` | Removido |
+| `403 Forbidden` | Não é administrador |
+| `422 Unprocessable Entity` | URL inválida ou subscription desconhecida |

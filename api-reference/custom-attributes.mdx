@@ -1,0 +1,151 @@
+---
+title: "Atributos personalizados"
+description: "Defina campos customizados pra conversas e contatos da sua conta."
+---
+
+Atributos personalizados (custom attributes) deixam você estender o modelo padrão
+com campos próprios. Cada atributo é **definido uma vez** na conta e pode ser
+preenchido em **todas** as conversas ou todos os contatos.
+
+Exemplo de uso: armazenar `valor_oportunidade`, `categoria_cliente`, `id_pedido`,
+`temperatura_lead`, etc.
+
+## Listar definições
+
+```http
+GET /api/v1/accounts/{account_id}/custom_attribute_definitions
+```
+
+| Parâmetro | Descrição |
+| --- | --- |
+| `attribute_model` | `0` = atributo de **conversa**, `1` = atributo de **contato** |
+
+```bash
+curl "https://chat.lfautomatiza.com/api/v1/accounts/1/custom_attribute_definitions?attribute_model=1" \
+  -H "api_access_token: $TOKEN"
+```
+
+## Criar definição
+
+```http
+POST /api/v1/accounts/{account_id}/custom_attribute_definitions
+```
+
+| Campo | Tipo | Obrigatório | Descrição |
+| --- | --- | --- | --- |
+| `attribute_display_name` | string | ✅ | Nome legível ("Valor da Oportunidade") |
+| `attribute_display_type` | enum | ✅ | Tipo do campo (ver abaixo) |
+| `attribute_description` | string | | Tooltip pros agentes |
+| `attribute_key` | string | | Slug auto-gerado se omitir (`valor_da_oportunidade`) |
+| `attribute_values` | array | | Apenas para `list` — opções da lista |
+| `attribute_model` | integer | ✅ | `0` = conversa, `1` = contato |
+| `regex_pattern` | string | | Validação opcional (apenas tipo text) |
+| `regex_cue` | string | | Mensagem mostrada se regex falhar |
+
+### Tipos de atributo (`attribute_display_type`)
+
+| Tipo | Numérico | Exemplo de uso |
+| --- | --- | --- |
+| `text` | 0 | "ID do pedido", "Observação" |
+| `number` | 1 | "Valor da oportunidade", "Quantidade" |
+| `currency` | 2 | "Ticket médio" |
+| `percent` | 3 | "Probabilidade de fechamento" |
+| `link` | 4 | "URL do CRM externo" |
+| `date` | 5 | "Data prevista de fechamento" |
+| `list` | 6 | "Origem do lead" (drop-down) |
+| `checkbox` | 7 | "Aceita newsletter" |
+
+### Exemplo: criar atributo de lista
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/custom_attribute_definitions \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "attribute_display_name": "Origem do Lead",
+    "attribute_display_type": 6,
+    "attribute_key": "origem_lead",
+    "attribute_values": ["google-ads", "meta-ads", "indicacao", "organico", "evento"],
+    "attribute_model": 1
+  }'
+```
+
+## Atualizar definição
+
+```http
+PATCH /api/v1/accounts/{account_id}/custom_attribute_definitions/{id}
+```
+
+<Warning>
+  Mudar o `attribute_key` quebra todas as integrações que já leem esse campo.
+  Mude só o `attribute_display_name` se quiser renomear pros agentes.
+</Warning>
+
+## Excluir definição
+
+```http
+DELETE /api/v1/accounts/{account_id}/custom_attribute_definitions/{id}
+```
+
+Os valores preenchidos nessa chave em conversas/contatos são apagados também.
+
+## Preencher valor em conversa
+
+```http
+POST /api/v1/accounts/{account_id}/conversations/{id}/custom_attributes
+```
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/custom_attributes \
+  -H "api_access_token: $TOKEN" \
+  -d '{
+    "custom_attributes": {
+      "valor_oportunidade": 5000,
+      "origem_lead": "google-ads"
+    }
+  }'
+```
+
+## Preencher valor em contato
+
+```http
+PATCH /api/v1/accounts/{account_id}/contacts/{id}
+```
+
+```bash
+curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/542 \
+  -H "api_access_token: $TOKEN" \
+  -d '{
+    "custom_attributes": {
+      "categoria": "vip",
+      "valor_lifetime": 12500
+    }
+  }'
+```
+
+## Filtrar por atributo customizado
+
+Em filtros de conversa ou contato, use o prefixo `custom_attributes.`:
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/filter \
+  -H "api_access_token: $TOKEN" \
+  -d '{
+    "payload": [
+      {
+        "attribute_key": "custom_attributes.origem_lead",
+        "filter_operator": "equal_to",
+        "values": ["google-ads"]
+      }
+    ]
+  }'
+```
+
+## Códigos de resposta
+
+| Código | Quando acontece |
+| --- | --- |
+| `200 OK` | Listagem / leitura / atualização |
+| `201 Created` | Definição criada |
+| `204 No Content` | Excluído |
+| `422 Unprocessable Entity` | Chave duplicada ou regex inválido |

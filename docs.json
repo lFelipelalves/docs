@@ -19,7 +19,8 @@
               "introduction",
               "essentials/authentication",
               "essentials/rate-limits",
-              "essentials/webhooks"
+              "essentials/webhooks",
+              "essentials/mcp"
             ]
           },
           {
@@ -41,6 +42,34 @@
             "group": "Visão geral",
             "pages": [
               "api-reference/introduction"
+            ]
+          },
+          {
+            "group": "Conversas e mensagens",
+            "pages": [
+              "api-reference/conversations",
+              "api-reference/messages",
+              "api-reference/contacts"
+            ]
+          },
+          {
+            "group": "Organização",
+            "pages": [
+              "api-reference/inboxes",
+              "api-reference/teams-agents",
+              "api-reference/labels",
+              "api-reference/custom-attributes"
+            ]
+          },
+          {
+            "group": "Operação",
+            "pages": [
+              "api-reference/campaigns",
+              "api-reference/automation-rules",
+              "api-reference/macros",
+              "api-reference/canned-responses",
+              "api-reference/reports",
+              "api-reference/webhooks-management"
             ]
           },
           {

@@ -1,0 +1,178 @@
+---
+title: "Inboxes (canais)"
+description: "Gestão dos canais de atendimento — WhatsApp, Instagram, Webchat, E-mail e os demais."
+---
+
+Uma **inbox** representa um canal de comunicação conectado à plataforma. Cada inbox
+tem um conjunto de agentes atribuídos, configurações próprias (horário, mensagem
+fora de expediente, auto-resolve) e regras de roteamento.
+
+## Listar inboxes
+
+```http
+GET /api/v1/accounts/{account_id}/inboxes
+```
+
+```bash
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/inboxes \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta
+
+```json
+{
+  "payload": [
+    {
+      "id": 1,
+      "name": "WhatsApp Principal",
+      "channel_type": "Channel::Whatsapp",
+      "phone_number": "+5511936233536",
+      "greeting_enabled": true,
+      "greeting_message": "Olá! Em que posso ajudar?",
+      "working_hours_enabled": true,
+      "out_of_office_message": "Nosso horário é seg-sex, 9h-18h.",
+      "auto_assignment_config": { "max_assignment_limit": 3 }
+    },
+    {
+      "id": 2,
+      "name": "Webchat Site",
+      "channel_type": "Channel::WebWidget",
+      "website_url": "https://lfautomatiza.com",
+      "widget_color": "#00B86B"
+    }
+  ]
+}
+```
+
+## Detalhe da inbox
+
+```http
+GET /api/v1/accounts/{account_id}/inboxes/{id}
+```
+
+## Atualizar inbox
+
+```http
+PATCH /api/v1/accounts/{account_id}/inboxes/{id}
+```
+
+Campos editáveis comuns:
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| `name` | string | Nome da inbox |
+| `greeting_enabled` | boolean | Liga mensagem de saudação inicial |
+| `greeting_message` | string | Texto da saudação |
+| `working_hours_enabled` | boolean | Liga horário comercial |
+| `out_of_office_message` | string | Mensagem fora do expediente |
+| `csat_survey_enabled` | boolean | Dispara pesquisa CSAT ao resolver |
+| `enable_auto_assignment` | boolean | Distribuição automática (round-robin) |
+| `auto_assignment_config.max_assignment_limit` | integer | Máximo de conversas simultâneas por agente |
+| `allow_messages_after_resolved` | boolean | Cliente pode mandar msg após resolvida (reabre) |
+
+```bash
+curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/inboxes/1 \
+  -H "api_access_token: $TOKEN" \
+  -d '{
+    "greeting_enabled": true,
+    "greeting_message": "Olá! Como podemos ajudar?",
+    "enable_auto_assignment": true,
+    "auto_assignment_config": { "max_assignment_limit": 5 }
+  }'
+```
+
+## Excluir inbox
+
+```http
+DELETE /api/v1/accounts/{account_id}/inboxes/{id}
+```
+
+<Warning>
+  Excluir a inbox **apaga todas as conversas** vinculadas a ela. Considere
+  desconectar o canal em vez de excluir, se quiser preservar histórico.
+</Warning>
+
+## Agentes da inbox
+
+Quem pode atender:
+
+```http
+GET /api/v1/accounts/{account_id}/inboxes/{id}/inbox_members
+POST /api/v1/accounts/{account_id}/inboxes/{id}/inbox_members
+DELETE /api/v1/accounts/{account_id}/inboxes/{id}/inbox_members
+```
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/inboxes/1/inbox_members \
+  -H "api_access_token: $TOKEN" \
+  -d '{ "user_ids": [7, 11, 15] }'
+```
+
+O array enviado **substitui** a lista atual de agentes da inbox.
+
+## Configurações de horário comercial
+
+```http
+PATCH /api/v1/accounts/{account_id}/inboxes/{id}
+```
+
+Payload com `working_hours`:
+
+```json
+{
+  "working_hours": [
+    { "day_of_week": 0, "closed_all_day": true },
+    { "day_of_week": 1, "open_hour": 9, "open_minutes": 0, "close_hour": 18, "close_minutes": 0 },
+    { "day_of_week": 2, "open_hour": 9, "open_minutes": 0, "close_hour": 18, "close_minutes": 0 },
+    { "day_of_week": 3, "open_hour": 9, "open_minutes": 0, "close_hour": 18, "close_minutes": 0 },
+    { "day_of_week": 4, "open_hour": 9, "open_minutes": 0, "close_hour": 18, "close_minutes": 0 },
+    { "day_of_week": 5, "open_hour": 9, "open_minutes": 0, "close_hour": 18, "close_minutes": 0 },
+    { "day_of_week": 6, "closed_all_day": true }
+  ],
+  "timezone": "America/Sao_Paulo",
+  "working_hours_enabled": true
+}
+```
+
+`day_of_week`: 0=Domingo, 1=Segunda, ... 6=Sábado.
+
+## Agent Bot da inbox
+
+Conecte um bot (Captain assistant ou webhook externo) ao canal:
+
+```http
+GET /api/v1/accounts/{account_id}/inboxes/{id}/agent_bot
+POST /api/v1/accounts/{account_id}/inboxes/{id}/set_agent_bot
+```
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/inboxes/1/set_agent_bot \
+  -H "api_access_token: $TOKEN" \
+  -d '{ "agent_bot": 4 }'
+```
+
+Passe `agent_bot: null` pra remover o bot.
+
+## Tipos de canal (`channel_type`)
+
+| `channel_type` | Canal |
+| --- | --- |
+| `Channel::Whatsapp` | WhatsApp |
+| `Channel::FacebookPage` | Facebook Messenger |
+| `Channel::Instagram` | Instagram DM |
+| `Channel::WebWidget` | Webchat (widget no site) |
+| `Channel::Email` | E-mail |
+| `Channel::Telegram` | Telegram |
+| `Channel::Sms` | SMS |
+| `Channel::Api` | Canal API customizado |
+
+## Códigos de resposta
+
+| Código | Quando acontece |
+| --- | --- |
+| `200 OK` | Listagem / leitura / atualização |
+| `204 No Content` | Excluído com sucesso |
+| `400 Bad Request` | Payload inválido |
+| `403 Forbidden` | Não é administrador |
+| `404 Not Found` | Inbox não existe |

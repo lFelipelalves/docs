@@ -1,0 +1,270 @@
+---
+title: "Contatos"
+description: "CRUD de contatos, busca, importação em massa, notas e conversas vinculadas."
+---
+
+Contatos são as pessoas que conversam com sua equipe. Cada contato pode ter múltiplas
+conversas (uma por canal/inbox) e atributos personalizados ilimitados.
+
+## Listar contatos
+
+```http
+GET /api/v1/accounts/{account_id}/contacts
+```
+
+| Parâmetro | Descrição |
+| --- | --- |
+| `q` | Busca textual em nome, e-mail, telefone, identifier |
+| `page` | Paginação (15 itens por página) |
+| `sort` | `name`, `phone_number`, `email`, `created_at` (use `-name` pra desc) |
+| `include_contact_inboxes` | `true` retorna também as inboxes do contato |
+
+```bash
+curl "https://chat.lfautomatiza.com/api/v1/accounts/1/contacts?q=carlos&page=1" \
+  -H "api_access_token: $TOKEN"
+```
+
+## Detalhe do contato
+
+```http
+GET /api/v1/accounts/{account_id}/contacts/{id}
+```
+
+```json
+{
+  "id": 542,
+  "name": "Carlos Antônio",
+  "email": "carlos@empresa.com.br",
+  "phone_number": "+5521999544338",
+  "identifier": "crm-id-1234",
+  "thumbnail": "https://cdn.lfautomatiza.com/...",
+  "additional_attributes": {
+    "city": "Rio de Janeiro",
+    "country": "Brazil",
+    "company_name": "ACME Corp"
+  },
+  "custom_attributes": {
+    "valor_lifetime": 12500,
+    "categoria": "vip"
+  },
+  "contact_inboxes": [
+    { "source_id": "5521999544338", "inbox": { "id": 1, "name": "WhatsApp Principal" } }
+  ]
+}
+```
+
+## Criar contato
+
+```http
+POST /api/v1/accounts/{account_id}/contacts
+```
+
+| Campo | Tipo | Obrigatório | Descrição |
+| --- | --- | --- | --- |
+| `inbox_id` | integer | ✅ | Onde o contato será criado |
+| `name` | string | | Nome do contato |
+| `email` | string | | E-mail (precisa ser único por conta) |
+| `phone_number` | string | | E.164 (`+5521999544338`) |
+| `identifier` | string | | ID externo (ex: ID do CRM) |
+| `avatar_url` | string | | URL pública de imagem |
+| `additional_attributes` | object | | Metadata sistêmica (cidade, empresa, etc.) |
+| `custom_attributes` | object | | Atributos customizados que você definiu |
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/contacts \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "inbox_id": 1,
+    "name": "Maria Silva",
+    "email": "maria@empresa.com",
+    "phone_number": "+5511999887766",
+    "identifier": "crm-9876",
+    "custom_attributes": {
+      "fonte": "google-ads",
+      "categoria": "lead-quente"
+    }
+  }'
+```
+
+## Atualizar contato
+
+```http
+PATCH /api/v1/accounts/{account_id}/contacts/{id}
+PUT /api/v1/accounts/{account_id}/contacts/{id}
+```
+
+```bash
+curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/542 \
+  -H "api_access_token: $TOKEN" \
+  -d '{ "email": "novo@email.com" }'
+```
+
+## Excluir contato
+
+```http
+DELETE /api/v1/accounts/{account_id}/contacts/{id}
+```
+
+<Warning>
+  Exclusão é irreversível e remove todas as conversas e mensagens vinculadas.
+  Considere usar **bloqueio** em vez de exclusão se for por motivo de comportamento.
+</Warning>
+
+## Buscar contatos
+
+Busca textual otimizada (mais rápida que o GET com `q`):
+
+```http
+GET /api/v1/accounts/{account_id}/contacts/search
+```
+
+```bash
+curl "https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/search?q=carlos&include=conversations" \
+  -H "api_access_token: $TOKEN"
+```
+
+## Filtro avançado
+
+```http
+POST /api/v1/accounts/{account_id}/contacts/filter
+```
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/filter \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "payload": [
+      {
+        "attribute_key": "country",
+        "filter_operator": "equal_to",
+        "values": ["Brazil"]
+      },
+      {
+        "attribute_key": "custom_attributes.categoria",
+        "filter_operator": "equal_to",
+        "values": ["vip"],
+        "query_operator": "and"
+      }
+    ]
+  }'
+```
+
+## Conversas do contato
+
+```http
+GET /api/v1/accounts/{account_id}/contacts/{id}/conversations
+```
+
+Retorna todas as conversas (em qualquer canal) que esse contato já teve.
+
+## Inboxes vinculadas
+
+Cada contato pode estar em múltiplas inboxes (canais). Lista vinculações atuais:
+
+```http
+GET /api/v1/accounts/{account_id}/contacts/{id}/contact_inboxes
+```
+
+Cria nova vinculação (ex: cadastrar e-mail do contato que já existe como WhatsApp):
+
+```http
+POST /api/v1/accounts/{account_id}/contacts/{id}/contact_inboxes
+```
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/542/contact_inboxes \
+  -H "api_access_token: $TOKEN" \
+  -d '{ "inbox_id": 3, "source_id": "carlos@empresa.com.br" }'
+```
+
+## Inboxes em que esse contato pode receber
+
+```http
+GET /api/v1/accounts/{account_id}/contacts/{id}/contactable_inboxes
+```
+
+Lista inboxes onde o contato tem identificador válido pra receber mensagem proativa
+(útil pra UI de "iniciar nova conversa").
+
+## Notas do contato
+
+| Método | Endpoint |
+| --- | --- |
+| `GET` | `/contacts/{contact_id}/notes` |
+| `POST` | `/contacts/{contact_id}/notes` |
+| `PATCH` | `/contacts/{contact_id}/notes/{id}` |
+| `DELETE` | `/contacts/{contact_id}/notes/{id}` |
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/542/notes \
+  -H "api_access_token: $TOKEN" \
+  -d '{ "content": "Cliente VIP — prioridade total." }'
+```
+
+## Importação em massa (CSV)
+
+```http
+POST /api/v1/accounts/{account_id}/contacts/import
+```
+
+Multipart com o arquivo CSV. Colunas suportadas:
+
+| Coluna CSV | Mapeamento |
+| --- | --- |
+| `name` | Nome |
+| `email` | E-mail |
+| `phone_number` | Telefone em E.164 |
+| `identifier` | ID externo |
+| `additional_attributes_*` | Atributos sistêmicos (ex: `additional_attributes_city`) |
+| `custom_attributes_*` | Atributos customizados (ex: `custom_attributes_categoria`) |
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/import \
+  -H "api_access_token: $TOKEN" \
+  -F "import_file=@contatos.csv"
+```
+
+<Tip>
+  Tamanho recomendado por arquivo: até 50.000 linhas. Acima disso, divida em
+  arquivos menores pra evitar timeout.
+</Tip>
+
+## Bloquear contato
+
+```http
+POST /api/v1/accounts/{account_id}/contacts/{id}/block
+POST /api/v1/accounts/{account_id}/contacts/{id}/unblock
+```
+
+Contato bloqueado não consegue iniciar novas conversas. Mensagens existentes ficam
+preservadas.
+
+## Mesclar contatos (merge)
+
+Quando o mesmo cliente aparece em 2 cadastros (ex: WhatsApp + e-mail criaram separados):
+
+```http
+POST /api/v1/accounts/{account_id}/actions/contact_merge
+```
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/actions/contact_merge \
+  -H "api_access_token: $TOKEN" \
+  -d '{ "base_contact_id": 542, "mergee_contact_id": 543 }'
+```
+
+Todas as conversas, notas e atributos do `mergee_contact_id` migram pro `base_contact_id`.
+
+## Códigos de resposta
+
+| Código | Quando acontece |
+| --- | --- |
+| `200 OK` | Sucesso em GET/PATCH |
+| `201 Created` | Contato criado |
+| `204 No Content` | Excluído com sucesso |
+| `400 Bad Request` | Payload inválido |
+| `403 Forbidden` | Sem permissão |
+| `404 Not Found` | Contato não existe |
+| `422 Unprocessable Entity` | E-mail ou telefone já existe na conta |

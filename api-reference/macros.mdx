@@ -1,0 +1,102 @@
+---
+title: "Macros"
+description: "Sequências de ações executadas manualmente pelo agente."
+---
+
+Macros são **sequências de ações pré-configuradas** que o agente executa com um clique
+durante uma conversa. Diferente de **regras de automação** (que disparam sozinhas a
+partir de eventos), macros são acionadas manualmente.
+
+Exemplo: macro "Escalar para N2" que executa em sequência:
+1. Adiciona label `n2`
+2. Atribui equipe Suporte N2
+3. Envia mensagem "Sua solicitação foi escalada pro time técnico"
+4. Muda status pra Pending
+
+## Listar macros
+
+```http
+GET /api/v1/accounts/{account_id}/macros
+```
+
+```bash
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/macros \
+  -H "api_access_token: $TOKEN"
+```
+
+## Criar macro
+
+```http
+POST /api/v1/accounts/{account_id}/macros
+```
+
+```json
+{
+  "name": "Escalar para N2",
+  "visibility": "global",
+  "actions": [
+    { "action_name": "add_label", "action_params": ["n2"] },
+    { "action_name": "assign_team", "action_params": [3] },
+    { "action_name": "send_message", "action_params": ["Sua solicitação foi escalada pro time técnico. Em breve um especialista responde."] },
+    { "action_name": "change_status", "action_params": ["pending"] }
+  ]
+}
+```
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| `name` | string | Nome exibido pros agentes |
+| `visibility` | enum | `global` (todos da conta) ou `personal` (só quem criou) |
+| `actions` | array | Sequência de ações (mesma estrutura das automation_rules) |
+
+### Ações disponíveis
+
+Mesmo conjunto das [regras de automação](/api-reference/automation-rules):
+
+`assign_agent`, `assign_team`, `assign_best_agent`, `add_label`, `remove_label`,
+`send_message`, `change_status`, `change_priority`, `send_attachment`, `mute_conversation`,
+`snooze_conversation`, `add_private_note`.
+
+## Detalhe / atualizar / excluir
+
+```http
+GET    /api/v1/accounts/{account_id}/macros/{id}
+PATCH  /api/v1/accounts/{account_id}/macros/{id}
+DELETE /api/v1/accounts/{account_id}/macros/{id}
+```
+
+## Executar macro numa conversa
+
+```http
+POST /api/v1/accounts/{account_id}/macros/{id}/execute
+```
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/macros/12/execute \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "conversation_ids": [1287, 1288, 1289] }'
+```
+
+| Campo | Descrição |
+| --- | --- |
+| `conversation_ids` | Array de conversas onde executar a macro (1 ou múltiplas) |
+
+Executar em múltiplas conversas é forma rápida de aplicar mesma ação em lote
+(ex: "marcar todas essas como resolvidas e enviar pesquisa CSAT").
+
+## Macros pessoais vs globais
+
+| `visibility` | Quem vê | Quem pode editar |
+| --- | --- | --- |
+| `personal` | Apenas o criador | Apenas o criador |
+| `global` | Todos os agentes da conta | Apenas administradores |
+
+## Códigos de resposta
+
+| Código | Quando acontece |
+| --- | --- |
+| `200 OK` | Listagem / leitura / atualização / execução |
+| `201 Created` | Macro criada |
+| `204 No Content` | Excluída |
+| `403 Forbidden` | Macro global sem ser admin / macro personal de outro agente |

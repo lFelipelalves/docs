@@ -1,0 +1,166 @@
+---
+title: "Equipes e agentes"
+description: "Gestão de times e atendentes da conta."
+---
+
+**Agentes** são os atendentes individuais da conta. **Equipes** (teams) agrupam
+agentes por especialidade ou departamento — útil pra rotear conversas por área
+(Vendas, Suporte, Financeiro, etc.).
+
+## Agentes
+
+### Listar
+
+```http
+GET /api/v1/accounts/{account_id}/agents
+```
+
+```bash
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/agents \
+  -H "api_access_token: $TOKEN"
+```
+
+Retorna todos os agentes da conta com `role` (administrator | agent), status de
+disponibilidade e métricas básicas.
+
+### Convidar agente
+
+```http
+POST /api/v1/accounts/{account_id}/agents
+```
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| `email` | string | E-mail do novo agente |
+| `name` | string | Nome |
+| `role` | enum | `administrator` ou `agent` |
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/agents \
+  -H "api_access_token: $TOKEN" \
+  -d '{
+    "email": "novo.atendente@empresa.com",
+    "name": "Maria Souza",
+    "role": "agent"
+  }'
+```
+
+O agente recebe e-mail com link de ativação. Até ativar, fica como `pending`.
+
+### Atualizar permissão
+
+```http
+PATCH /api/v1/accounts/{account_id}/agents/{id}
+```
+
+```bash
+curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/agents/7 \
+  -H "api_access_token: $TOKEN" \
+  -d '{ "role": "administrator" }'
+```
+
+### Remover agente
+
+```http
+DELETE /api/v1/accounts/{account_id}/agents/{id}
+```
+
+Remove o agente da conta. Conversas atribuídas a ele ficam sem agente (precisam ser
+reatribuídas).
+
+---
+
+## Equipes (Teams)
+
+### Listar
+
+```http
+GET /api/v1/accounts/{account_id}/teams
+```
+
+### Criar equipe
+
+```http
+POST /api/v1/accounts/{account_id}/teams
+```
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/teams \
+  -H "api_access_token: $TOKEN" \
+  -d '{
+    "name": "Comercial",
+    "description": "Equipe de vendas inbound e outbound",
+    "allow_auto_assign": true
+  }'
+```
+
+| Campo | Tipo | Descrição |
+| --- | --- | --- |
+| `name` | string | Nome da equipe |
+| `description` | string | Texto livre |
+| `allow_auto_assign` | boolean | Liga distribuição automática para os membros |
+
+### Detalhe / atualizar / excluir
+
+```http
+GET    /api/v1/accounts/{account_id}/teams/{id}
+PATCH  /api/v1/accounts/{account_id}/teams/{id}
+DELETE /api/v1/accounts/{account_id}/teams/{id}
+```
+
+### Membros da equipe
+
+```http
+GET    /api/v1/accounts/{account_id}/teams/{id}/team_members
+POST   /api/v1/accounts/{account_id}/teams/{id}/team_members
+DELETE /api/v1/accounts/{account_id}/teams/{id}/team_members
+```
+
+Adicionar agentes:
+
+```bash
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/teams/3/team_members \
+  -H "api_access_token: $TOKEN" \
+  -d '{ "user_ids": [7, 11, 15] }'
+```
+
+Remover:
+
+```bash
+curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/teams/3/team_members \
+  -H "api_access_token: $TOKEN" \
+  -d '{ "user_ids": [11] }'
+```
+
+## Disponibilidade do agente
+
+Status atual de cada agente fica em `availability_status` quando você lista agentes:
+
+| Status | Significado |
+| --- | --- |
+| `online` | Disponível pra receber conversas |
+| `busy` | Ocupado (não recebe novas atribuições automáticas) |
+| `offline` | Desconectado |
+
+Distribuição automática só atribui conversas pra agentes `online`.
+
+## Papéis (`role`)
+
+| Role | Permissões |
+| --- | --- |
+| `administrator` | Tudo: configurações, gestão de equipe, inboxes, integrações |
+| `agent` | Só atende — não muda configurações da conta |
+
+Para granularidade maior, use **funções personalizadas** (custom roles) — disponíveis
+em planos enterprise.
+
+## Códigos de resposta
+
+| Código | Quando acontece |
+| --- | --- |
+| `200 OK` | Sucesso em GET / PATCH |
+| `201 Created` | Agente convidado / equipe criada |
+| `204 No Content` | Removido com sucesso |
+| `403 Forbidden` | Apenas administrador pode gerenciar agentes/equipes |
+| `404 Not Found` | Recurso não existe |
+| `422 Unprocessable Entity` | E-mail já vinculado a outra conta |

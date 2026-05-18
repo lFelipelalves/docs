@@ -1,0 +1,143 @@
+---
+title: "MCP (Model Context Protocol)"
+description: "Como conectar ferramentas externas ao Captain via MCP."
+---
+
+**Model Context Protocol** (MCP) é um padrão aberto que permite assistentes de IA
+usarem ferramentas externas de forma estruturada — sem precisar codar uma
+integração específica pra cada serviço.
+
+No LF Connect, o **Captain** (suíte de IA da plataforma) suporta MCP nativamente.
+Você conecta um servidor MCP a um assistente, e ele passa a usar as ferramentas
+expostas por esse servidor automaticamente.
+
+## Por que MCP?
+
+<CardGroup cols={2}>
+  <Card title="Padrão aberto" icon="code-branch">
+    Documentado pela Anthropic, adotado pelo ecossistema. Você não fica preso a uma plataforma.
+  </Card>
+  <Card title="Sem código próprio" icon="bolt">
+    Plugar um servidor MCP é configuração — não precisa escrever adapter.
+  </Card>
+  <Card title="Reutilizável" icon="recycle">
+    O mesmo servidor MCP pode ser usado por vários assistentes em contas diferentes.
+  </Card>
+  <Card title="Auditável" icon="shield-check">
+    Toda chamada a uma ferramenta MCP fica registrada no histórico da conversa.
+  </Card>
+</CardGroup>
+
+## Casos de uso comuns
+
+| Caso de uso | Servidor MCP típico |
+| --- | --- |
+| Buscar pedido em e-commerce | MCP de Shopify, WooCommerce, ou seu MCP custom |
+| Consultar CRM (lead, oportunidade) | MCP de HubSpot, Salesforce, Pipedrive |
+| Marcar reunião no calendário | MCP de Google Calendar, Cal.com |
+| Buscar artigo em base de conhecimento | MCP de Notion, Confluence, Help Center |
+| Consultar pedido de entrega/logística | MCP custom da sua API interna |
+
+## Como adicionar um servidor MCP a um assistente
+
+<Steps>
+  <Step title="Menu Captain → MCP Servers">
+    Em **Captain → MCP Servers**, clique em **Adicionar servidor**.
+  </Step>
+  <Step title="Configure a conexão">
+    Informe:
+
+    - **Nome** — identificador legível (ex: "Shopify - Loja Principal")
+    - **URL** — endpoint do servidor MCP (`https://mcp.exemplo.com/sse` ou similar)
+    - **Headers de autenticação** — `Authorization: Bearer ...` ou qualquer header customizado que seu servidor exija
+    - **Timeout** — quanto esperar por resposta (padrão: 15s)
+  </Step>
+  <Step title="Vincule ao assistente">
+    Volte em **Captain → Assistentes → [seu assistente] → Tools**, e marque
+    o servidor MCP recém-criado. O assistente passa a ver todas as ferramentas
+    expostas por ele.
+  </Step>
+  <Step title="Teste no Playground">
+    Em **Captain → Playground**, converse com o assistente e force um cenário
+    onde ele precisaria usar a ferramenta MCP (ex: "Qual o status do pedido 1234?").
+    Confirme nos logs que a chamada foi feita corretamente.
+  </Step>
+</Steps>
+
+## Exemplo de configuração
+
+Servidor MCP exposto em `https://mcp.minhaempresa.com/sse` com autenticação Bearer:
+
+```json
+{
+  "name": "API Pedidos Interna",
+  "url": "https://mcp.minhaempresa.com/sse",
+  "transport": "sse",
+  "headers": {
+    "Authorization": "Bearer mcp_token_aqui",
+    "X-Workspace-Id": "acme-corp"
+  },
+  "timeout_seconds": 15
+}
+```
+
+## Construir seu próprio servidor MCP
+
+Se a integração não existe pronta, escrever um servidor MCP é simples — a
+especificação tem SDKs em Python, TypeScript e outras linguagens.
+
+<CardGroup cols={2}>
+  <Card title="Especificação oficial" icon="book" href="https://modelcontextprotocol.io">
+    modelcontextprotocol.io
+  </Card>
+  <Card title="SDK TypeScript" icon="js" href="https://github.com/modelcontextprotocol/typescript-sdk">
+    @modelcontextprotocol/sdk
+  </Card>
+  <Card title="SDK Python" icon="python" href="https://github.com/modelcontextprotocol/python-sdk">
+    mcp (PyPI)
+  </Card>
+  <Card title="Lista de servidores prontos" icon="list" href="https://github.com/modelcontextprotocol/servers">
+    Servidores oficiais e comunitários
+  </Card>
+</CardGroup>
+
+## Custom Tools vs MCP
+
+Captain também suporta **Custom Tools** — chamadas HTTP diretas a URLs específicas.
+A diferença:
+
+| Critério | Custom Tools | MCP Servers |
+| --- | --- | --- |
+| Configuração | Define cada endpoint individualmente | Um servidor expõe várias ferramentas |
+| Padrão | Proprietário (LF Connect) | Aberto (MCP) |
+| Reutilização entre contas | Não automática | Sim |
+| Descoberta dinâmica | Não — você lista cada endpoint | Sim — assistente descobre tools no servidor |
+| Quando usar | 1-2 endpoints específicos | Múltiplas ferramentas correlatas |
+
+Como regra: **se sua integração tem 3+ ações relacionadas, faz mais sentido em MCP**.
+
+## Segurança
+
+<Warning>
+  Servidor MCP é uma porta de entrada com poder real — o assistente pode invocar
+  qualquer ferramenta exposta por ele. Trate auth com o mesmo cuidado de um token
+  de API:
+
+  - Use HTTPS sempre
+  - Tokens curtos e rotacionáveis no header
+  - Logs de chamadas no seu lado pra auditoria
+  - Princípio do menor privilégio: o servidor MCP só expõe ferramentas que esse
+    assistente realmente precisa
+</Warning>
+
+## Próximos passos
+
+<CardGroup cols={2}>
+  <Card title="Webhooks" icon="webhook" href="/essentials/webhooks">
+    Pra reagir a eventos da plataforma (entrada de mensagem, mudança de etapa
+    no Kanban, etc.), use webhooks — não MCP.
+  </Card>
+  <Card title="Captain — features" icon="robot" href="/features/captain">
+    Visão geral do que mais o Captain consegue fazer.
+  </Card>
+</CardGroup>

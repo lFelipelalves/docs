@@ -48,23 +48,47 @@ A maioria dos endpoints é **escopada por conta** (workspace) e segue o padrão:
 ## Recursos disponíveis
 
 <CardGroup cols={2}>
-  <Card title="Conversas" icon="messages">
-    CRUD de conversas, atribuição de agente, mudança de status
+  <Card title="Conversas" icon="messages" href="/api-reference/conversations">
+    CRUD, atribuição, labels, status, filtros avançados
   </Card>
-  <Card title="Mensagens" icon="comment">
-    Enviar texto, mídia, templates HSM, notas privadas
+  <Card title="Mensagens" icon="comment" href="/api-reference/messages">
+    Enviar texto, mídia, templates aprovados, notas privadas
   </Card>
-  <Card title="Contatos" icon="address-book">
-    Criar, listar, importar, segmentar
+  <Card title="Contatos" icon="address-book" href="/api-reference/contacts">
+    Criar, listar, importar CSV, segmentar, mesclar
+  </Card>
+  <Card title="Inboxes" icon="inbox" href="/api-reference/inboxes">
+    Canais, horário comercial, agentes vinculados
+  </Card>
+  <Card title="Equipes e agentes" icon="users" href="/api-reference/teams-agents">
+    Convidar agentes, gerenciar equipes e membros
+  </Card>
+  <Card title="Labels" icon="tags" href="/api-reference/labels">
+    CRUD de etiquetas usadas em conversas e contatos
+  </Card>
+  <Card title="Atributos personalizados" icon="list" href="/api-reference/custom-attributes">
+    Campos customizados pra conversas e contatos
+  </Card>
+  <Card title="Campanhas" icon="bullhorn" href="/api-reference/campaigns">
+    One-off e ongoing, audiência por labels, agendamento
+  </Card>
+  <Card title="Regras de automação" icon="bolt" href="/api-reference/automation-rules">
+    Evento → Condição → Ação, sem código
+  </Card>
+  <Card title="Macros" icon="wand-magic-sparkles" href="/api-reference/macros">
+    Sequências executadas manualmente pelo agente
+  </Card>
+  <Card title="Respostas rápidas" icon="bolt-lightning" href="/api-reference/canned-responses">
+    Textos pré-definidos com atalho `/`
+  </Card>
+  <Card title="Relatórios" icon="chart-line" href="/api-reference/reports">
+    Métricas de conversas, agentes, equipes, CSAT
+  </Card>
+  <Card title="Webhooks (API)" icon="webhook" href="/api-reference/webhooks-management">
+    Cadastrar e gerenciar webhooks programaticamente
   </Card>
   <Card title="Kanban" icon="kanban" href="/api-reference/kanban/funnels">
     Funis, cards, automações, importação
-  </Card>
-  <Card title="Campanhas" icon="bullhorn">
-    One-off e ongoing, multi-inbox, métricas
-  </Card>
-  <Card title="Webhooks" icon="webhook" href="/essentials/webhooks">
-    Configurar eventos e validar assinatura
   </Card>
 </CardGroup>
 
