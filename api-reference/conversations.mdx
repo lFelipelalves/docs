@@ -1,33 +1,37 @@
 ---
 title: "Conversas"
-description: "CRUD de conversas, atribuição, labels, status e filtros avançados."
+description: "CRUD de conversas, atribuição, labels, status, prioridade e filtros avançados."
 ---
 
 Conversas (também chamadas de tickets) são o núcleo da API do LF Connect.
 Cada conversa pertence a uma **inbox** (canal) e é vinculada a um **contato**.
 
+**Base:** `https://chat.lfautomatiza.com/api/v1/accounts/{account_id}`
+
+---
+
 ## Listar conversas
 
 ```http
-GET /api/v1/accounts/{account_id}/conversations
+GET /conversations
 ```
 
-| Parâmetro | Tipo | Descrição |
-| --- | --- | --- |
-| `status` | enum | `open`, `resolved`, `pending`, `snoozed`, `all` |
-| `assignee_type` | enum | `me`, `unassigned`, `assigned`, `unassigned_or_me` |
-| `inbox_id` | integer | Filtra por inbox |
-| `team_id` | integer | Filtra por equipe |
-| `labels[]` | array | Uma ou mais labels (combinação AND) |
-| `q` | string | Busca textual |
-| `page` | integer | Paginação (25 itens por página) |
+<ParamField query="status" type="enum">`open`, `resolved`, `pending`, `snoozed`, `all`</ParamField>
+<ParamField query="assignee_type" type="enum">`me`, `unassigned`, `assigned`, `unassigned_or_me`</ParamField>
+<ParamField query="inbox_id" type="integer">Filtra por inbox</ParamField>
+<ParamField query="team_id" type="integer">Filtra por equipe</ParamField>
+<ParamField query="labels[]" type="array">Uma ou mais labels (combinação AND)</ParamField>
+<ParamField query="q" type="string">Busca textual</ParamField>
+<ParamField query="page" type="integer" default="1">Paginação (25 itens por página)</ParamField>
 
-```bash
+### Requisição
+
+```bash cURL
 curl "https://chat.lfautomatiza.com/api/v1/accounts/1/conversations?status=open&assignee_type=me" \
   -H "api_access_token: $TOKEN"
 ```
 
-### Resposta
+### Resposta `200`
 
 ```json
 {
@@ -41,7 +45,6 @@ curl "https://chat.lfautomatiza.com/api/v1/accounts/1/conversations?status=open&
     "payload": [
       {
         "id": 1287,
-        "messages": [],
         "account_id": 1,
         "inbox_id": 1,
         "status": "open",
@@ -54,6 +57,7 @@ curl "https://chat.lfautomatiza.com/api/v1/accounts/1/conversations?status=open&
         "created_at": 1715900000,
         "updated_at": 1715972400,
         "labels": ["financeiro"],
+        "priority": "high",
         "meta": {
           "sender": {
             "id": 542,
@@ -62,8 +66,7 @@ curl "https://chat.lfautomatiza.com/api/v1/accounts/1/conversations?status=open&
           },
           "assignee": {
             "id": 7,
-            "name": "Sabrina",
-            "available_name": "Sabrina"
+            "name": "Sabrina"
           }
         },
         "messages_count": 8
@@ -73,36 +76,73 @@ curl "https://chat.lfautomatiza.com/api/v1/accounts/1/conversations?status=open&
 }
 ```
 
+---
+
 ## Detalhe da conversa
 
 ```http
-GET /api/v1/accounts/{account_id}/conversations/{id}
+GET /conversations/{id}
 ```
 
-```bash
-curl "https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287" \
+<ParamField path="id" type="integer" required>ID da conversa</ParamField>
+
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287 \
   -H "api_access_token: $TOKEN"
 ```
+
+### Resposta `200`
+
+```json
+{
+  "id": 1287,
+  "status": "open",
+  "inbox_id": 1,
+  "assignee_id": 7,
+  "team_id": null,
+  "labels": ["financeiro"],
+  "priority": "high",
+  "custom_attributes": { "valor_oportunidade": 5000 },
+  "additional_attributes": { "browser": "Chrome", "country_code": "BR" },
+  "meta": {
+    "sender": { "id": 542, "name": "Carlos Antônio" },
+    "assignee": { "id": 7, "name": "Sabrina" },
+    "team": null,
+    "channel": "Channel::Whatsapp"
+  },
+  "messages_count": 8,
+  "unread_count": 0
+}
+```
+
+---
 
 ## Criar conversa
 
 ```http
-POST /api/v1/accounts/{account_id}/conversations
+POST /conversations
 ```
 
-| Campo | Tipo | Obrigatório | Descrição |
-| --- | --- | --- | --- |
-| `source_id` | string | ✅ | Identificador externo (ex: número WhatsApp) |
-| `inbox_id` | integer | ✅ | Inbox onde a conversa nasce |
-| `contact_id` | integer | ✅ | Contato vinculado |
-| `additional_attributes` | object | | Metadata extra |
-| `custom_attributes` | object | | Atributos personalizados |
-| `status` | enum | | `open` (padrão) ou `pending` |
-| `assignee_id` | integer | | Agente responsável inicial |
-| `team_id` | integer | | Equipe responsável |
-| `message` | object | | Primeira mensagem (opcional) |
+<ParamField body="source_id" type="string" required>Identificador externo (ex: número WhatsApp)</ParamField>
+<ParamField body="inbox_id" type="integer" required>Inbox onde a conversa nasce</ParamField>
+<ParamField body="contact_id" type="integer" required>Contato vinculado</ParamField>
+<ParamField body="status" type="enum" default="open">`open` ou `pending`</ParamField>
+<ParamField body="assignee_id" type="integer">Agente responsável inicial</ParamField>
+<ParamField body="team_id" type="integer">Equipe responsável</ParamField>
+<ParamField body="additional_attributes" type="object">Metadata sistêmica</ParamField>
+<ParamField body="custom_attributes" type="object">Atributos personalizados</ParamField>
+<ParamField body="message" type="object">Primeira mensagem (opcional, ver objeto abaixo)</ParamField>
 
-```bash
+#### `message`
+
+<ParamField body="message.content" type="string" required>Texto</ParamField>
+<ParamField body="message.message_type" type="enum">`outgoing` (padrão) ou `incoming`</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations \
   -H "api_access_token: $TOKEN" \
   -H "Content-Type: application/json" \
@@ -119,104 +159,385 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations \
   }'
 ```
 
+### Resposta `200`
+
+```json
+{
+  "id": 1290,
+  "display_id": 125,
+  "status": "open",
+  "inbox_id": 1,
+  "contact_id": 542,
+  "assignee_id": 7,
+  "created_at": 1715990000
+}
+```
+
+---
+
 ## Atribuir agente / equipe
 
 ```http
-POST /api/v1/accounts/{account_id}/conversations/{id}/assignments
+POST /conversations/{id}/assignments
 ```
 
-```bash
+<ParamField path="id" type="integer" required>ID da conversa</ParamField>
+<ParamField body="assignee_id" type="integer">ID do agente (passe `null` pra desatribuir)</ParamField>
+<ParamField body="team_id" type="integer">ID da equipe (passe `null` pra desatribuir)</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/assignments \
   -H "api_access_token: $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{ "assignee_id": 7, "team_id": 3 }'
+  -d '{
+    "assignee_id": 7,
+    "team_id": 3
+  }'
 ```
 
-Passe `"assignee_id": null` pra remover o agente. Mesma lógica para `team_id`.
+### Resposta `200`
+
+```json
+{
+  "id": 7,
+  "name": "Sabrina",
+  "email": "sabrina@lfautomatiza.com",
+  "available_name": "Sabrina"
+}
+```
+
+---
 
 ## Mudar status
 
 ```http
-POST /api/v1/accounts/{account_id}/conversations/{id}/toggle_status
+POST /conversations/{id}/toggle_status
 ```
 
-Alterna entre os status disponíveis (open ↔ resolved). Para definir um status específico:
+<ParamField path="id" type="integer" required>ID da conversa</ParamField>
+<ParamField body="status" type="enum">`open`, `resolved`, `pending`, `snoozed` (se omitido, alterna entre open ↔ resolved)</ParamField>
+<ParamField body="snoozed_until" type="datetime">Quando `status=snoozed`, define data de retorno (ISO 8601)</ParamField>
 
-```bash
+### Requisição — resolver
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/toggle_status \
   -H "api_access_token: $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{ "status": "resolved" }'
 ```
 
-Valores aceitos: `open`, `resolved`, `pending`, `snoozed`.
+### Requisição — snooze até data específica
 
-Pra fazer **snooze** com data específica:
-
-```bash
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/toggle_status \
   -H "api_access_token: $TOKEN" \
-  -d '{ "status": "snoozed", "snoozed_until": "2026-05-25T14:00:00Z" }'
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "snoozed",
+    "snoozed_until": "2026-05-25T14:00:00Z"
+  }'
 ```
+
+### Resposta `200`
+
+```json
+{
+  "meta": { "all_count": 64 },
+  "payload": {
+    "id": 1287,
+    "status": "resolved",
+    "resolved_at": 1715990500
+  }
+}
+```
+
+---
 
 ## Mudar prioridade
 
 ```http
-TOGGLE /api/v1/accounts/{account_id}/conversations/{id}/toggle_priority
+POST /conversations/{id}/toggle_priority
 ```
 
-```bash
+<ParamField path="id" type="integer" required>ID da conversa</ParamField>
+<ParamField body="priority" type="enum">`low`, `medium`, `high`, `urgent`, ou `null` pra remover</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/toggle_priority \
   -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
   -d '{ "priority": "urgent" }'
 ```
 
-Valores: `low`, `medium`, `high`, `urgent`, `null` (sem prioridade).
+### Resposta `200`
 
-## Adicionar / remover labels
-
-```http
-POST /api/v1/accounts/{account_id}/conversations/{id}/labels
+```json
+{
+  "id": 1287,
+  "priority": "urgent",
+  "updated_at": 1715990800
+}
 ```
 
-```bash
+---
+
+## Atualizar labels
+
+```http
+POST /conversations/{id}/labels
+```
+
+<ParamField path="id" type="integer" required>ID da conversa</ParamField>
+<ParamField body="labels" type="array" required>Lista completa de labels (substitui todas as atuais)</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/labels \
   -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
   -d '{ "labels": ["financeiro", "urgente"] }'
 ```
 
-O array enviado **substitui** todas as labels atuais. Pra remover, mande array sem ela.
+### Resposta `200`
+
+```json
+{
+  "payload": ["financeiro", "urgente"]
+}
+```
+
+---
+
+## Listar labels da conversa
+
+```http
+GET /conversations/{id}/labels
+```
+
+<ParamField path="id" type="integer" required>ID da conversa</ParamField>
+
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/labels \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{
+  "payload": ["financeiro", "urgente"]
+}
+```
+
+---
 
 ## Silenciar conversa
 
-| Ação | Endpoint |
-| --- | --- |
-| Silenciar | `POST /conversations/{id}/mute` |
-| Reativar | `POST /conversations/{id}/unmute` |
+```http
+POST /conversations/{id}/mute
+```
 
-Conversa silenciada não dispara notificações para os agentes mas continua aparecendo na lista.
+<ParamField path="id" type="integer" required>ID da conversa</ParamField>
+
+Conversa silenciada não dispara notificações pros agentes.
+
+### Requisição
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/mute \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{ "id": 1287, "muted": true }
+```
+
+---
+
+## Reativar conversa silenciada
+
+```http
+POST /conversations/{id}/unmute
+```
+
+### Requisição
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/unmute \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{ "id": 1287, "muted": false }
+```
+
+---
 
 ## Enviar transcrição por e-mail
 
 ```http
-POST /api/v1/accounts/{account_id}/conversations/{id}/transcript
+POST /conversations/{id}/transcript
 ```
 
-```bash
+<ParamField path="id" type="integer" required>ID da conversa</ParamField>
+<ParamField body="email" type="string" required>E-mail destinatário</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/transcript \
   -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
   -d '{ "email": "supervisor@empresa.com" }'
 ```
 
-## Filtro avançado
+### Resposta `200`
 
-Quando os query params do GET não chegam, use o endpoint de filtro com payload estruturado:
-
-```http
-POST /api/v1/accounts/{account_id}/conversations/filter
+```json
+{ "success": true, "delivered_to": "supervisor@empresa.com" }
 ```
 
-```bash
+---
+
+## Atualizar atributos personalizados
+
+```http
+POST /conversations/{id}/custom_attributes
+```
+
+<ParamField path="id" type="integer" required>ID da conversa</ParamField>
+<ParamField body="custom_attributes" type="object" required>Mapa chave → valor</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/custom_attributes \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "custom_attributes": {
+      "valor_oportunidade": 1500,
+      "fonte": "google-ads"
+    }
+  }'
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 1287,
+  "custom_attributes": {
+    "valor_oportunidade": 1500,
+    "fonte": "google-ads"
+  }
+}
+```
+
+---
+
+## Marcar visualização (last seen)
+
+```http
+POST /conversations/{id}/update_last_seen
+```
+
+<ParamField path="id" type="integer" required>ID da conversa</ParamField>
+
+Atualiza o `agent_last_seen_at` da conversa — útil pra contadores de "não-lidas"
+em integrações com UI customizada.
+
+### Requisição
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/update_last_seen \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{ "id": 1287, "agent_last_seen_at": 1715991000 }
+```
+
+---
+
+## Mostrar indicador de digitação
+
+```http
+POST /conversations/{id}/toggle_typing_status
+```
+
+<ParamField path="id" type="integer" required>ID da conversa</ParamField>
+<ParamField body="typing_status" type="enum" required>`on` ou `off`</ParamField>
+
+Útil quando um bot demora pra responder e você quer mostrar "digitando..." pro cliente.
+
+### Requisição
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/toggle_typing_status \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "typing_status": "on" }'
+```
+
+### Resposta `200`
+
+```json
+{ "id": 1287, "typing_status": "on" }
+```
+
+---
+
+## Filtro avançado
+
+```http
+POST /conversations/filter
+```
+
+Quando os query params do GET não chegam, use este endpoint com payload estruturado.
+
+<ParamField body="payload" type="array" required>Array de condições (ver formato abaixo)</ParamField>
+
+#### Estrutura de cada condição
+
+<ParamField body="payload[].attribute_key" type="string" required>Atributo a consultar (ver lista abaixo)</ParamField>
+<ParamField body="payload[].filter_operator" type="enum" required>Operador de comparação</ParamField>
+<ParamField body="payload[].values" type="array" required>Valor(es) a comparar</ParamField>
+<ParamField body="payload[].query_operator" type="enum">`and` ou `or` — como conectar com a próxima condição</ParamField>
+
+#### Atributos consultáveis
+
+`status`, `assignee_id`, `team_id`, `inbox_id`, `labels`, `priority`, `created_at`,
+`last_activity_at`, `browser_language`, `country_code`, `referer`, `campaign_id`,
+qualquer `custom_attributes.{chave}`.
+
+#### Operadores
+
+| Operador | Aplica-se a |
+| --- | --- |
+| `equal_to`, `not_equal_to` | Tudo |
+| `contains`, `does_not_contain` | Strings, arrays |
+| `greater_than`, `less_than` | Números, datas |
+| `is_present`, `is_not_present` | Tudo (verifica null) |
+| `is_greater_than`, `is_less_than` | Datas |
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/filter \
   -H "api_access_token: $TOKEN" \
   -H "Content-Type: application/json" \
@@ -243,77 +564,50 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/filte
   }'
 ```
 
-### Operadores suportados
+### Resposta `200`
 
-| Operador | Aplica-se a |
-| --- | --- |
-| `equal_to`, `not_equal_to` | Tudo |
-| `contains`, `does_not_contain` | Strings, arrays |
-| `greater_than`, `less_than` | Números, datas |
-| `is_present`, `is_not_present` | Tudo (verifica null) |
-| `is_greater_than`, `is_less_than` | Datas |
+```json
+{
+  "meta": { "count": 18 },
+  "payload": [
+    { "id": 1287, "status": "open", "labels": ["vip"], "messages_count": 8 }
+  ]
+}
+```
 
-### Atributos consultáveis
-
-`status`, `assignee_id`, `team_id`, `inbox_id`, `labels`, `priority`, `created_at`,
-`last_activity_at`, `browser_language`, `country_code`, `referer`, `campaign_id`,
-qualquer `custom_attributes.{chave}`.
+---
 
 ## Métricas agregadas
 
 ```http
-GET /api/v1/accounts/{account_id}/conversations/meta
+GET /conversations/meta
 ```
 
-Retorna contagens (mine_count, unassigned_count, etc.) sem precisar baixar a lista inteira.
+Retorna contagens (mine_count, unassigned_count, etc.) sem baixar a lista inteira.
 
-```bash
+<ParamField query="status" type="enum">Mesmo filtro do listar (`open`, `resolved`, etc.)</ParamField>
+
+### Requisição
+
+```bash cURL
 curl "https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/meta?status=open" \
   -H "api_access_token: $TOKEN"
 ```
 
-## Marcar visualização
+### Resposta `200`
 
-```http
-POST /api/v1/accounts/{account_id}/conversations/{id}/update_last_seen
+```json
+{
+  "meta": {
+    "mine_count": 12,
+    "assigned_count": 47,
+    "unassigned_count": 5,
+    "all_count": 64
+  }
+}
 ```
 
-Atualiza o `agent_last_seen_at` da conversa — útil pra contadores de não-lidas
-em integrações que mostram a UI fora da plataforma.
-
-## Status de digitação
-
-```http
-POST /api/v1/accounts/{account_id}/conversations/{id}/toggle_typing_status
-```
-
-```bash
-curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/toggle_typing_status \
-  -H "api_access_token: $TOKEN" \
-  -d '{ "typing_status": "on" }'
-```
-
-Valores: `on`, `off`. Útil quando um bot demora pra responder e você quer mostrar
-o indicador "digitando..." pro cliente.
-
-## Custom attributes da conversa
-
-Atualize atributos personalizados sem mexer em outros campos:
-
-```http
-POST /api/v1/accounts/{account_id}/conversations/{id}/custom_attributes
-```
-
-```bash
-curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/custom_attributes \
-  -H "api_access_token: $TOKEN" \
-  -d '{
-    "custom_attributes": {
-      "valor_oportunidade": 1500,
-      "fonte": "google-ads"
-    }
-  }'
-```
+---
 
 ## Códigos de resposta
 
@@ -321,7 +615,7 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/
 | --- | --- |
 | `200 OK` | Listagem, leitura, atualização |
 | `201 Created` | Conversa criada |
-| `204 No Content` | Atribuição/labels atualizadas com sucesso |
+| `204 No Content` | Atribuição / labels atualizadas |
 | `400 Bad Request` | Payload inválido |
 | `401 Unauthorized` | Token ausente/inválido |
 | `403 Forbidden` | Usuário não tem acesso à conversa |

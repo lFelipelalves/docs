@@ -4,33 +4,81 @@ description: "CRUD de regras event-driven que automatizam ações na plataforma.
 ---
 
 Regras de automação seguem o padrão **Evento → Condições → Ações**. Toda vez que
-um evento de tipo configurado acontece, a plataforma avalia as condições da regra —
-se passarem, executa as ações.
+um evento configurado acontece, a plataforma avalia as condições — se passarem,
+executa as ações.
+
+**Base:** `https://chat.lfautomatiza.com/api/v1/accounts/{account_id}`
+
+---
 
 ## Listar regras
 
 ```http
-GET /api/v1/accounts/{account_id}/automation_rules
+GET /automation_rules
 ```
 
-```bash
+### Requisição
+
+```bash cURL
 curl https://chat.lfautomatiza.com/api/v1/accounts/1/automation_rules \
   -H "api_access_token: $TOKEN"
 ```
 
-## Criar regra
-
-```http
-POST /api/v1/accounts/{account_id}/automation_rules
-```
-
-### Payload completo
+### Resposta `200`
 
 ```json
 {
+  "payload": [
+    {
+      "id": 21,
+      "name": "Mensagem com boleto vai pro Financeiro",
+      "description": "Roteia automaticamente menções a boleto",
+      "event_name": "message_created",
+      "active": true,
+      "conditions": [
+        {
+          "attribute_key": "content",
+          "filter_operator": "contains",
+          "values": ["boleto"]
+        }
+      ],
+      "actions": [
+        { "action_name": "assign_team", "action_params": [3] },
+        { "action_name": "add_label", "action_params": ["financeiro"] }
+      ],
+      "executions_count": 47,
+      "created_at": "2026-04-12T10:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+## Detalhe da regra
+
+```http
+GET /automation_rules/{id}
+```
+
+<ParamField path="id" type="integer" required>ID da regra</ParamField>
+
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/automation_rules/21 \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 21,
   "name": "Mensagem com boleto vai pro Financeiro",
   "description": "Roteia automaticamente menções a boleto",
   "event_name": "message_created",
+  "active": true,
   "conditions": [
     {
       "attribute_key": "content",
@@ -45,22 +93,29 @@ POST /api/v1/accounts/{account_id}/automation_rules
     }
   ],
   "actions": [
-    {
-      "action_name": "assign_team",
-      "action_params": [3]
-    },
-    {
-      "action_name": "add_label",
-      "action_params": ["financeiro", "aguardando-pagamento"]
-    },
-    {
-      "action_name": "change_priority",
-      "action_params": ["high"]
-    }
+    { "action_name": "assign_team", "action_params": [3] },
+    { "action_name": "add_label", "action_params": ["financeiro"] },
+    { "action_name": "change_priority", "action_params": ["high"] }
   ],
-  "active": true
+  "executions_count": 47,
+  "last_executed_at": "2026-05-18T19:00:00Z"
 }
 ```
+
+---
+
+## Criar regra
+
+```http
+POST /automation_rules
+```
+
+<ParamField body="name" type="string" required>Nome legível</ParamField>
+<ParamField body="description" type="string">Contexto / motivo (recomendado em contas com muitas regras)</ParamField>
+<ParamField body="event_name" type="enum" required>Quando dispara (ver tabela)</ParamField>
+<ParamField body="conditions" type="array" required>Filtros (combinam com `query_operator`)</ParamField>
+<ParamField body="actions" type="array" required>Ações executadas se passar</ParamField>
+<ParamField body="active" type="boolean" default="true">Liga/desliga</ParamField>
 
 ### Eventos disponíveis (`event_name`)
 
@@ -95,8 +150,8 @@ qualquer `custom_attributes.{chave}`.
 | `assign_team` | `[team_id]` |
 | `assign_best_agent` | `[]` (round-robin entre disponíveis) |
 | `remove_assigned_team` | `[]` |
-| `add_label` | `[label1, label2, ...]` |
-| `remove_label` | `[label1, label2, ...]` |
+| `add_label` | `["label1", "label2", ...]` |
+| `remove_label` | `["label1", ...]` |
 | `send_message` | `["Texto da resposta"]` |
 | `send_email_to_team` | `[{ "team_ids": [3], "subject": "..." }]` |
 | `change_status` | `["resolved"]` ou `["open"]`, `["pending"]`, `["snoozed"]` |
@@ -107,29 +162,177 @@ qualquer `custom_attributes.{chave}`.
 | `send_attachment` | `[attachment_id]` |
 | `add_private_note` | `["Texto da nota interna"]` |
 
-## Detalhe / atualizar / excluir
+### Requisição
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/automation_rules \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Mensagem com boleto vai pro Financeiro",
+    "description": "Roteia automaticamente menções a boleto",
+    "event_name": "message_created",
+    "conditions": [
+      {
+        "attribute_key": "content",
+        "filter_operator": "contains",
+        "values": ["boleto"],
+        "query_operator": "and"
+      },
+      {
+        "attribute_key": "message_type",
+        "filter_operator": "equal_to",
+        "values": ["incoming"]
+      }
+    ],
+    "actions": [
+      { "action_name": "assign_team", "action_params": [3] },
+      { "action_name": "add_label", "action_params": ["financeiro", "aguardando-pagamento"] },
+      { "action_name": "change_priority", "action_params": ["high"] }
+    ],
+    "active": true
+  }'
+```
+
+### Resposta `201`
+
+```json
+{
+  "id": 22,
+  "name": "Mensagem com boleto vai pro Financeiro",
+  "event_name": "message_created",
+  "active": true,
+  "created_at": "2026-05-18T23:00:00Z"
+}
+```
+
+---
+
+## Atualizar regra
 
 ```http
-GET    /api/v1/accounts/{account_id}/automation_rules/{id}
-PATCH  /api/v1/accounts/{account_id}/automation_rules/{id}
-DELETE /api/v1/accounts/{account_id}/automation_rules/{id}
+PATCH /automation_rules/{id}
+PUT /automation_rules/{id}
 ```
+
+<ParamField path="id" type="integer" required>ID da regra</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/automation_rules/21 \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "actions": [
+      { "action_name": "assign_team", "action_params": [3] },
+      { "action_name": "add_label", "action_params": ["financeiro"] },
+      { "action_name": "change_priority", "action_params": ["urgent"] },
+      { "action_name": "send_webhook_event", "action_params": ["https://meu-n8n.com/webhook/financeiro"] }
+    ]
+  }'
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 21,
+  "actions": [
+    { "action_name": "assign_team", "action_params": [3] },
+    { "action_name": "add_label", "action_params": ["financeiro"] },
+    { "action_name": "change_priority", "action_params": ["urgent"] },
+    { "action_name": "send_webhook_event", "action_params": ["https://meu-n8n.com/webhook/financeiro"] }
+  ],
+  "updated_at": "2026-05-18T23:15:00Z"
+}
+```
+
+---
+
+## Excluir regra
+
+```http
+DELETE /automation_rules/{id}
+```
+
+<ParamField path="id" type="integer" required>ID da regra</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/automation_rules/22 \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `204`
+
+Sem corpo.
+
+---
 
 ## Clonar regra
 
 ```http
-POST /api/v1/accounts/{account_id}/automation_rules/{id}/clone
+POST /automation_rules/{id}/clone
 ```
 
 Útil pra testar variações sem mexer na original.
 
-## Ativar / desativar via toggle
+<ParamField path="id" type="integer" required>ID da regra a clonar</ParamField>
 
-```http
-POST /api/v1/accounts/{account_id}/automation_rules/{id}/active
+### Requisição
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/automation_rules/21/clone \
+  -H "api_access_token: $TOKEN"
 ```
 
-Alterna o campo `active`. Útil pra pausar regra temporariamente sem perder configuração.
+### Resposta `201`
+
+```json
+{
+  "id": 23,
+  "name": "Copy of: Mensagem com boleto vai pro Financeiro",
+  "event_name": "message_created",
+  "active": false,
+  "cloned_from_id": 21,
+  "created_at": "2026-05-18T23:30:00Z"
+}
+```
+
+A regra clonada nasce com `active: false` por padrão — você revisa e ativa depois.
+
+---
+
+## Toggle ativo/inativo
+
+```http
+POST /automation_rules/{id}/active
+```
+
+Alterna o campo `active` sem precisar mandar payload com todos os outros campos.
+
+<ParamField path="id" type="integer" required>ID da regra</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/automation_rules/21/active \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 21,
+  "active": false,
+  "toggled_at": "2026-05-18T23:45:00Z"
+}
+```
+
+---
 
 ## Ordem de execução
 
@@ -142,12 +345,14 @@ regras avaliarem.
   com 20+ regras, o nome sozinho não conta a história toda.
 </Tip>
 
+---
+
 ## Códigos de resposta
 
 | Código | Quando acontece |
 | --- | --- |
-| `200 OK` | Listagem / leitura / atualização |
-| `201 Created` | Regra criada |
+| `200 OK` | Listagem / leitura / atualização / toggle |
+| `201 Created` | Regra criada ou clonada |
 | `204 No Content` | Excluída |
 | `403 Forbidden` | Apenas administrador |
 | `422 Unprocessable Entity` | Condição ou ação inválida |

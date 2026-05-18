@@ -6,78 +6,326 @@ description: "Comentários internos e arquivos vinculados ao card."
 Notas são comentários internos do time (não visíveis ao cliente). Cada nota
 pode ter anexos próprios. Cards também podem ter anexos diretos sem nota associada.
 
-## Notas — endpoints
+**Base:** `https://chat.lfautomatiza.com/api/v1/accounts/{account_id}`
 
-| Método | Endpoint | Descrição |
-| --- | --- | --- |
-| `POST` | `/kanban_items/:id/create_note` | Cria nota |
-| `GET` | `/kanban_items/:id/get_notes` | Lista notas |
-| `PATCH` | `/kanban_items/:id/update_note` | Edita nota |
-| `DELETE` | `/kanban_items/:id/delete_note` | Exclui nota |
+---
 
 ## Criar nota
 
-```bash
+```http
+POST /kanban_items/{id}/create_note
+```
+
+<ParamField path="id" type="integer" required>ID do card</ParamField>
+<ParamField body="text" type="string" required>Conteúdo da nota (suporta markdown básico)</ParamField>
+<ParamField body="attachments" type="array">IDs de anexos previamente enviados</ParamField>
+<ParamField body="linked_item_id" type="integer">Outro card relacionado</ParamField>
+<ParamField body="linked_conversation_id" type="integer">Conversa relacionada</ParamField>
+<ParamField body="linked_contact_id" type="integer">Contato relacionado</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/create_note \
   -H "api_access_token: $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "text": "Cliente pediu desconto. Aprovado até 10%.",
-    "attachments": [],
-    "linked_item_id": null,
+    "text": "Cliente pediu desconto. Aprovado até 10% — não passe disso.",
     "linked_conversation_id": 12345,
     "linked_contact_id": 542
   }'
 ```
 
-| Campo | Tipo | Descrição |
-| --- | --- | --- |
-| `text` | string | Conteúdo (suporta markdown básico) |
-| `attachments` | array | IDs de attachments já enviados |
-| `linked_item_id` | integer | Outro card relacionado |
-| `linked_conversation_id` | integer | Conversa relacionada |
-| `linked_contact_id` | integer | Contato relacionado |
+### Resposta `201`
 
-## Anexos — endpoints
+```json
+{
+  "id": 78,
+  "kanban_item_id": 101,
+  "text": "Cliente pediu desconto. Aprovado até 10% — não passe disso.",
+  "linked_conversation_id": 12345,
+  "linked_contact_id": 542,
+  "agent_id": 7,
+  "attachments": [],
+  "created_at": "2026-05-18T18:30:00Z"
+}
+```
 
-| Método | Endpoint | Descrição |
-| --- | --- | --- |
-| `GET` | `/kanban/items/:item_id/attachments` | Lista anexos do card |
-| `POST` | `/kanban/items/:item_id/attachments` | Envia anexo (multipart) |
-| `DELETE` | `/kanban/items/:item_id/attachments/:id` | Exclui anexo |
-| `POST` | `/kanban/items/:item_id/note_attachments` | Envia anexo de nota |
-| `DELETE` | `/kanban/items/:item_id/note_attachments/:id` | Exclui anexo de nota |
+---
+
+## Listar notas do card
+
+```http
+GET /kanban_items/{id}/get_notes
+```
+
+<ParamField path="id" type="integer" required>ID do card</ParamField>
+
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/get_notes \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{
+  "kanban_item_id": 101,
+  "notes": [
+    {
+      "id": 78,
+      "text": "Cliente pediu desconto. Aprovado até 10%.",
+      "agent_id": 7,
+      "agent_name": "Sabrina",
+      "created_at": "2026-05-18T18:30:00Z",
+      "attachments": []
+    },
+    {
+      "id": 79,
+      "text": "Enviei proposta v2 com 8% off.",
+      "agent_id": 7,
+      "created_at": "2026-05-18T19:00:00Z",
+      "attachments": [
+        { "id": 789, "file_url": "https://...", "file_size": 245760, "file_type": "application/pdf" }
+      ]
+    }
+  ],
+  "count": 2
+}
+```
+
+---
+
+## Atualizar nota
+
+```http
+PATCH /kanban_items/{id}/update_note
+```
+
+<ParamField path="id" type="integer" required>ID do card</ParamField>
+<ParamField body="note_id" type="integer" required>ID da nota</ParamField>
+<ParamField body="text" type="string">Novo texto</ParamField>
+<ParamField body="attachments" type="array">Novos anexos vinculados</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/update_note \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "note_id": 78,
+    "text": "Cliente pediu desconto. Aprovado até 12% (subiu o teto)."
+  }'
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 78,
+  "text": "Cliente pediu desconto. Aprovado até 12% (subiu o teto).",
+  "updated_at": "2026-05-18T19:15:00Z"
+}
+```
+
+---
+
+## Excluir nota
+
+```http
+DELETE /kanban_items/{id}/delete_note
+```
+
+<ParamField path="id" type="integer" required>ID do card</ParamField>
+<ParamField body="note_id" type="integer" required>ID da nota</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/delete_note \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "note_id": 78 }'
+```
+
+### Resposta `204`
+
+Sem corpo.
+
+---
+
+## Listar anexos do card
+
+```http
+GET /kanban/items/{item_id}/attachments
+```
 
 <Warning>
-  Note que esses endpoints usam o namespace **`/kanban/items/`** (não `/kanban_items/`).
-  É uma rota separada por razões históricas — fique atento ao prefixo.
+  Endpoints de anexo usam o namespace **`/kanban/items/`** (não `/kanban_items/`).
+  Atenção ao prefixo — é diferente do resto dos endpoints.
 </Warning>
+
+<ParamField path="item_id" type="integer" required>ID do card</ParamField>
+
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/kanban/items/101/attachments \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{
+  "kanban_item_id": 101,
+  "attachments": [
+    {
+      "id": 789,
+      "file_url": "https://chat.lfautomatiza.com/rails/active_storage/blobs/...",
+      "file_size": 245760,
+      "file_type": "application/pdf",
+      "uploaded_by_agent_id": 7,
+      "uploaded_at": "2026-05-18T18:45:00Z"
+    }
+  ]
+}
+```
+
+---
 
 ## Enviar anexo no card
 
-Upload multipart padrão:
+```http
+POST /kanban/items/{item_id}/attachments
+```
 
-```bash
+Multipart form-data.
+
+<ParamField path="item_id" type="integer" required>ID do card</ParamField>
+<ParamField body="attachment" type="file" required>Arquivo (multipart)</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban/items/101/attachments \
   -H "api_access_token: $TOKEN" \
   -F "attachment=@contrato.pdf"
 ```
 
-A resposta retorna o `id` do anexo, que você pode então referenciar ao criar nota:
+### Resposta `201`
 
 ```json
 {
   "id": 789,
   "file_url": "https://chat.lfautomatiza.com/rails/active_storage/blobs/...",
   "file_size": 245760,
-  "file_type": "application/pdf"
+  "file_type": "application/pdf",
+  "filename": "contrato.pdf"
 }
 ```
 
-## Limites
+---
 
-| Tipo | Limite |
+## Excluir anexo do card
+
+```http
+DELETE /kanban/items/{item_id}/attachments/{id}
+```
+
+<ParamField path="item_id" type="integer" required>ID do card</ParamField>
+<ParamField path="id" type="integer" required>ID do anexo</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/kanban/items/101/attachments/789 \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `204`
+
+Sem corpo.
+
+---
+
+## Enviar anexo de nota
+
+```http
+POST /kanban/items/{item_id}/note_attachments
+```
+
+Use **antes** de criar/atualizar nota com o ID retornado.
+
+<ParamField path="item_id" type="integer" required>ID do card</ParamField>
+<ParamField body="attachment" type="file" required>Arquivo (multipart)</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban/items/101/note_attachments \
+  -H "api_access_token: $TOKEN" \
+  -F "attachment=@proposta.pdf"
+```
+
+### Resposta `201`
+
+```json
+{
+  "id": 312,
+  "file_url": "https://chat.lfautomatiza.com/rails/active_storage/blobs/...",
+  "file_size": 153420,
+  "file_type": "application/pdf",
+  "filename": "proposta.pdf"
+}
+```
+
+Depois, referencie esse `id` no campo `attachments[]` ao criar a nota.
+
+---
+
+## Excluir anexo de nota
+
+```http
+DELETE /kanban/items/{item_id}/note_attachments/{id}
+```
+
+<ParamField path="item_id" type="integer" required>ID do card</ParamField>
+<ParamField path="id" type="integer" required>ID do anexo</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/kanban/items/101/note_attachments/312 \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `204`
+
+Sem corpo.
+
+---
+
+## Limites de arquivo
+
+| Limite | Valor |
 | --- | --- |
 | Tamanho por arquivo | 25 MB |
 | Tipos aceitos | PDF, DOC/DOCX, XLS/XLSX, CSV, PNG, JPG, MP4, MP3, WAV |
-| Quantidade por card | Sem limite (até 25MB cada) |
+| Quantidade por card | Sem limite |
+
+---
+
+## Códigos de resposta
+
+| Código | Quando acontece |
+| --- | --- |
+| `200 OK` | Listagem / atualização |
+| `201 Created` | Nota ou anexo criado |
+| `204 No Content` | Excluído |
+| `404 Not Found` | Card, nota ou anexo não existe |
+| `413 Payload Too Large` | Arquivo > 25MB |
+| `415 Unsupported Media Type` | Tipo de arquivo não permitido |

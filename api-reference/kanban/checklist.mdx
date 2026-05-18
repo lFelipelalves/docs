@@ -6,24 +6,25 @@ description: "Tarefas (to-do) dentro de cada card do Kanban, com agente, prazo e
 Cada card pode ter uma lista de tarefas. Útil pra acompanhar etapas de qualificação,
 documentos pendentes, follow-ups ou onboarding.
 
-## Endpoints
+**Base:** `https://chat.lfautomatiza.com/api/v1/accounts/{account_id}`
 
-| Método | Endpoint | Descrição |
-| --- | --- | --- |
-| `POST` | `/kanban_items/:id/create_checklist_item` | Cria tarefa |
-| `GET` | `/kanban_items/:id/get_checklist` | Lista tarefas |
-| `PATCH` | `/kanban_items/:id/update_checklist_item` | Edita tarefa |
-| `POST` | `/kanban_items/:id/toggle_checklist_item` | Marca/desmarca conclusão |
-| `DELETE` | `/kanban_items/:id/delete_checklist_item` | Exclui tarefa |
-| `POST` | `/kanban_items/:id/assign_agent_to_checklist_item` | Atribui agente |
-| `DELETE` | `/kanban_items/:id/remove_agent_from_checklist_item` | Remove agente |
-| `POST` | `/kanban_items/:id/duplicate_checklist` | Duplica checklist pra outro card |
-| `GET` | `/kanban_items/:id/search_checklist` | Busca textual |
-| `GET` | `/kanban_items/:id/checklist_progress_by_agent` | Progresso por agente |
+---
 
 ## Criar tarefa
 
-```bash
+```http
+POST /kanban_items/{id}/create_checklist_item
+```
+
+<ParamField path="id" type="integer" required>ID do card</ParamField>
+<ParamField body="text" type="string" required>Descrição da tarefa</ParamField>
+<ParamField body="due_date" type="date">Prazo no formato ISO (`YYYY-MM-DD`)</ParamField>
+<ParamField body="priority" type="enum">`low`, `medium`, `high`, `urgent`</ParamField>
+<ParamField body="agent_id" type="integer">Agente responsável pela tarefa</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/create_checklist_item \
   -H "api_access_token: $TOKEN" \
   -H "Content-Type: application/json" \
@@ -35,29 +36,242 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/cr
   }'
 ```
 
-| Campo | Tipo | Descrição |
-| --- | --- | --- |
-| `text` | string | Descrição da tarefa |
-| `due_date` | date (ISO) | Prazo (opcional) |
-| `priority` | enum | `low` / `medium` / `high` / `urgent` |
-| `agent_id` | integer | Agente responsável |
+### Resposta `201`
 
-## Marcar como concluída
+```json
+{
+  "id": 55,
+  "kanban_item_id": 101,
+  "text": "Enviar contrato pra assinatura",
+  "due_date": "2026-05-25",
+  "priority": "high",
+  "agent_id": 7,
+  "completed": false,
+  "created_at": "2026-05-18T17:30:00Z"
+}
+```
 
-```bash
+---
+
+## Listar tarefas do card
+
+```http
+GET /kanban_items/{id}/get_checklist
+```
+
+<ParamField path="id" type="integer" required>ID do card</ParamField>
+
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/get_checklist \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{
+  "kanban_item_id": 101,
+  "items": [
+    {
+      "id": 55,
+      "text": "Enviar contrato pra assinatura",
+      "due_date": "2026-05-25",
+      "priority": "high",
+      "agent_id": 7,
+      "completed": false
+    },
+    {
+      "id": 56,
+      "text": "Marcar reunião de kickoff",
+      "due_date": null,
+      "priority": "medium",
+      "agent_id": 11,
+      "completed": true,
+      "completed_at": "2026-05-17T14:00:00Z"
+    }
+  ],
+  "total": 2,
+  "completed": 1,
+  "completion_rate": 0.5
+}
+```
+
+---
+
+## Atualizar tarefa
+
+```http
+PATCH /kanban_items/{id}/update_checklist_item
+```
+
+<ParamField path="id" type="integer" required>ID do card</ParamField>
+<ParamField body="checklist_item_id" type="integer" required>ID da tarefa</ParamField>
+<ParamField body="text" type="string">Novo texto</ParamField>
+<ParamField body="due_date" type="date">Novo prazo</ParamField>
+<ParamField body="priority" type="enum">Nova prioridade</ParamField>
+<ParamField body="agent_id" type="integer">Novo agente responsável</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/update_checklist_item \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "checklist_item_id": 55,
+    "due_date": "2026-05-28",
+    "priority": "urgent"
+  }'
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 55,
+  "due_date": "2026-05-28",
+  "priority": "urgent",
+  "updated_at": "2026-05-18T17:45:00Z"
+}
+```
+
+---
+
+## Marcar / desmarcar conclusão
+
+```http
+POST /kanban_items/{id}/toggle_checklist_item
+```
+
+Toggle — se está aberto, fecha; se está fechado, reabre.
+
+<ParamField path="id" type="integer" required>ID do card</ParamField>
+<ParamField body="checklist_item_id" type="integer" required>ID da tarefa</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/toggle_checklist_item \
   -H "api_access_token: $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{ "checklist_item_id": 55 }'
 ```
 
-O endpoint é toggle — se está aberto, fecha; se está fechado, reabre.
+### Resposta `200`
+
+```json
+{
+  "id": 55,
+  "completed": true,
+  "completed_at": "2026-05-18T17:50:00Z",
+  "completed_by_agent_id": 7
+}
+```
+
+---
+
+## Excluir tarefa
+
+```http
+DELETE /kanban_items/{id}/delete_checklist_item
+```
+
+<ParamField path="id" type="integer" required>ID do card</ParamField>
+<ParamField body="checklist_item_id" type="integer" required>ID da tarefa</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/delete_checklist_item \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "checklist_item_id": 55 }'
+```
+
+### Resposta `204`
+
+Sem corpo.
+
+---
+
+## Atribuir agente à tarefa
+
+```http
+POST /kanban_items/{id}/assign_agent_to_checklist_item
+```
+
+<ParamField path="id" type="integer" required>ID do card</ParamField>
+<ParamField body="checklist_item_id" type="integer" required>ID da tarefa</ParamField>
+<ParamField body="agent_id" type="integer" required>ID do agente</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/assign_agent_to_checklist_item \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "checklist_item_id": 55,
+    "agent_id": 11
+  }'
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 55,
+  "agent_id": 11,
+  "assigned_at": "2026-05-18T18:00:00Z"
+}
+```
+
+---
+
+## Remover agente da tarefa
+
+```http
+DELETE /kanban_items/{id}/remove_agent_from_checklist_item
+```
+
+<ParamField path="id" type="integer" required>ID do card</ParamField>
+<ParamField body="checklist_item_id" type="integer" required>ID da tarefa</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/remove_agent_from_checklist_item \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "checklist_item_id": 55 }'
+```
+
+### Resposta `200`
+
+```json
+{ "id": 55, "agent_id": null }
+```
+
+---
 
 ## Duplicar checklist pra outro card
 
-Quando você cria um template de processo (ex: "Onboarding cliente novo"):
+```http
+POST /kanban_items/{id}/duplicate_checklist
+```
 
-```bash
+Útil quando você tem um card-template com processo padrão (ex: "Onboarding cliente novo")
+e quer aplicar em outros cards.
+
+<ParamField path="id" type="integer" required>Card de origem (de onde copiar)</ParamField>
+<ParamField body="target_item_id" type="integer" required>Card destino (onde colar)</ParamField>
+<ParamField body="merge" type="boolean" default="false">`false` substitui checklist do destino, `true` adiciona ao existente</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/duplicate_checklist \
   -H "api_access_token: $TOKEN" \
   -H "Content-Type: application/json" \
@@ -67,18 +281,87 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/du
   }'
 ```
 
-| Campo | Comportamento |
-| --- | --- |
-| `target_item_id` | Card que receberá a checklist |
-| `merge: false` | Substitui checklist do destino |
-| `merge: true` | Adiciona itens à checklist existente |
+### Resposta `200`
+
+```json
+{
+  "source_item_id": 101,
+  "target_item_id": 202,
+  "items_copied": 5,
+  "mode": "replace"
+}
+```
+
+---
+
+## Buscar texto na checklist
+
+```http
+GET /kanban_items/{id}/search_checklist
+```
+
+<ParamField path="id" type="integer" required>ID do card</ParamField>
+<ParamField query="query" type="string" required>Texto a buscar</ParamField>
+
+### Requisição
+
+```bash cURL
+curl "https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/search_checklist?query=contrato" \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{
+  "query": "contrato",
+  "matches": [
+    { "id": 55, "text": "Enviar contrato pra assinatura", "completed": false }
+  ],
+  "count": 1
+}
+```
+
+---
 
 ## Progresso por agente
 
-```bash
+```http
+GET /kanban_items/{id}/checklist_progress_by_agent
+```
+
+<ParamField path="id" type="integer" required>ID do card</ParamField>
+
+Útil pra dashboards de produtividade.
+
+### Requisição
+
+```bash cURL
 curl https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/checklist_progress_by_agent \
   -H "api_access_token: $TOKEN"
 ```
 
-Retorna quantas tarefas cada agente tem atribuídas e quantas já completou —
-útil pra dashboards de produtividade.
+### Resposta `200`
+
+```json
+{
+  "kanban_item_id": 101,
+  "by_agent": [
+    { "agent_id": 7, "agent_name": "Sabrina", "total": 3, "completed": 2, "rate": 0.67 },
+    { "agent_id": 11, "agent_name": "Marcos", "total": 2, "completed": 0, "rate": 0.0 }
+  ]
+}
+```
+
+---
+
+## Códigos de resposta
+
+| Código | Quando acontece |
+| --- | --- |
+| `200 OK` | Listagem / atualização / toggle / assign |
+| `201 Created` | Tarefa criada |
+| `204 No Content` | Tarefa excluída |
+| `400 Bad Request` | Payload inválido |
+| `404 Not Found` | Card ou checklist_item_id não existe |
+| `422 Unprocessable Entity` | `due_date` inválida, agente não pertence à conta |

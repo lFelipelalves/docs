@@ -1,44 +1,174 @@
 ---
 title: "Cards (Kanban Items)"
-description: "CRUD de cards no Kanban, com filtros por funil, etapa, agente e conversa."
+description: "CRUD de cards, filtros por funil/etapa/conversa, e endpoint batch com métricas agregadas."
 ---
 
 Cards (chamados internamente de **Kanban Items**) são as unidades do Kanban —
 cada um representa uma oportunidade comercial, vinculada a um contato e a uma conversa.
 
-## Endpoints
+**Base:** `https://chat.lfautomatiza.com/api/v1/accounts/{account_id}`
 
-| Método | Endpoint | Descrição |
-| --- | --- | --- |
-| `GET` | `/kanban_items` | Lista paginada |
-| `GET` | `/kanban_items/batch` | Lista + metadados agregados (`stage_counts`, `total_items`) |
-| `GET` | `/kanban_items/:id` | Detalhe |
-| `POST` | `/kanban_items` | Cria card |
-| `PATCH` `PUT` | `/kanban_items/:id` | Atualiza card |
-| `DELETE` | `/kanban_items/:id` | Exclui card |
+---
 
-## Filtros suportados
+## Listar cards
 
-| Parâmetro | Descrição |
-| --- | --- |
-| `funnel_id` | Filtra por funil |
-| `stage_id` | Filtra por etapa |
-| `agent_id` | Filtra por agente atribuído |
-| `conversation_id` | Filtra por conversa vinculada |
-| `page` | Paginação (1-indexed) |
+```http
+GET /kanban_items
+```
 
-## Listar cards de uma conversa
+<ParamField query="funnel_id" type="integer">Filtra por funil</ParamField>
+<ParamField query="stage_id" type="string">Filtra por etapa (`lead`, `qualified`, etc.)</ParamField>
+<ParamField query="agent_id" type="integer">Filtra por agente atribuído</ParamField>
+<ParamField query="conversation_id" type="integer">Filtra por conversa vinculada</ParamField>
+<ParamField query="page" type="integer" default="1">Paginação (1-indexed)</ParamField>
 
-Use caso clássico: "esse contato tem oportunidade aberta no Kanban?"
+### Requisição
 
-```bash
-curl "https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items?conversation_id=12345" \
+```bash cURL
+curl "https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items?funnel_id=10&stage_id=qualified" \
   -H "api_access_token: $TOKEN"
 ```
 
+### Resposta `200`
+
+```json
+{
+  "data": {
+    "payload": [
+      {
+        "id": 101,
+        "funnel_id": 10,
+        "funnel_stage": "qualified",
+        "position": 1,
+        "item_details": {
+          "title": "Oportunidade ACME",
+          "description": "Interesse no plano Scale",
+          "status": "open",
+          "priority": "high",
+          "value": 5000,
+          "currency": { "code": "BRL", "symbol": "R$", "locale": "pt-BR" }
+        },
+        "assigned_agents": [{ "id": 7, "name": "Sabrina" }],
+        "conversation_display_id": 1287,
+        "created_at": "2026-05-10T10:00:00Z",
+        "updated_at": "2026-05-18T14:00:00Z"
+      }
+    ],
+    "meta": { "current_page": 1, "total_pages": 5, "total_count": 124 }
+  }
+}
+```
+
+---
+
+## Listar com metadados agregados (batch)
+
+```http
+GET /kanban_items/batch
+```
+
+Retorna a lista **mais** estatísticas agregadas (`stage_counts`, `total_items`)
+em uma única chamada. Útil pra dashboards.
+
+<ParamField query="funnel_id" type="integer">Filtra por funil</ParamField>
+<ParamField query="stage_id" type="string">Filtra por etapa</ParamField>
+<ParamField query="agent_id" type="integer">Filtra por agente</ParamField>
+
+### Requisição
+
+```bash cURL
+curl "https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/batch?funnel_id=10" \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{
+  "data": { "payload": [/* cards */] },
+  "stage_counts": {
+    "lead": 124,
+    "qualified": 48,
+    "proposal": 22,
+    "won": 8,
+    "lost": 14
+  },
+  "total_items": 216
+}
+```
+
+---
+
+## Detalhe do card
+
+```http
+GET /kanban_items/{id}
+```
+
+<ParamField path="id" type="integer" required>ID do card</ParamField>
+
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101 \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 101,
+  "funnel_id": 10,
+  "funnel_stage": "qualified",
+  "position": 1,
+  "item_details": {
+    "title": "Oportunidade ACME",
+    "description": "Interesse no plano Scale",
+    "status": "open",
+    "priority": "high",
+    "value": 5000,
+    "currency": { "code": "BRL", "symbol": "R$", "locale": "pt-BR" },
+    "notes": []
+  },
+  "assigned_agents": [{ "id": 7, "name": "Sabrina" }],
+  "conversation_display_id": 1287,
+  "checklist_items_count": 5,
+  "checklist_items_completed": 2,
+  "attachments_count": 1,
+  "created_at": "2026-05-10T10:00:00Z"
+}
+```
+
+---
+
 ## Criar card
 
-```bash
+```http
+POST /kanban_items
+```
+
+### Corpo da requisição
+
+<ParamField body="kanban_item.funnel_id" type="integer" required>Funil onde o card vive</ParamField>
+<ParamField body="kanban_item.funnel_stage" type="string" required>ID da etapa (`lead`, `qualified`...)</ParamField>
+<ParamField body="kanban_item.position" type="integer">Ordem dentro da etapa (padrão: final)</ParamField>
+<ParamField body="kanban_item.conversation_display_id" type="integer">Conversa vinculada</ParamField>
+<ParamField body="kanban_item.assigned_agents" type="array">IDs dos agentes responsáveis</ParamField>
+<ParamField body="kanban_item.item_details" type="object" required>Detalhes do card (ver abaixo)</ParamField>
+
+#### `item_details`
+
+<ParamField body="item_details.title" type="string" required>Título exibido no card</ParamField>
+<ParamField body="item_details.description" type="string">Texto livre</ParamField>
+<ParamField body="item_details.status" type="enum">`open` (padrão), `won`, `lost`</ParamField>
+<ParamField body="item_details.priority" type="enum">`low`, `medium`, `high`, `urgent`</ParamField>
+<ParamField body="item_details.value" type="number">Valor monetário</ParamField>
+<ParamField body="item_details.currency" type="object">`{ symbol, code, locale }`</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items \
   -H "api_access_token: $TOKEN" \
   -H "Content-Type: application/json" \
@@ -67,38 +197,103 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items \
   }'
 ```
 
-### Campos do payload
-
-| Campo | Tipo | Descrição |
-| --- | --- | --- |
-| `funnel_id` | integer | Funil onde o card vive |
-| `funnel_stage` | string | ID da etapa (`lead`, `qualified`, etc.) |
-| `position` | integer | Ordem dentro da etapa |
-| `conversation_display_id` | integer | ID da conversa vinculada |
-| `assigned_agents` | array | IDs dos agentes responsáveis |
-| `item_details.title` | string | Título exibido no card |
-| `item_details.description` | string | Texto livre |
-| `item_details.status` | enum | `open` / `won` / `lost` |
-| `item_details.priority` | enum | `low` / `medium` / `high` / `urgent` |
-| `item_details.value` | number | Valor monetário |
-| `item_details.currency` | object | `symbol`, `code`, `locale` |
-
-## Lote com metadados (batch)
-
-`GET /kanban_items/batch` retorna a lista **mais** estatísticas agregadas, útil
-pra dashboards que mostram contagem por etapa sem precisar de chamada extra:
-
-```bash
-curl "https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/batch?funnel_id=10" \
-  -H "api_access_token: $TOKEN"
-```
-
-Resposta inclui:
+### Resposta `201`
 
 ```json
 {
-  "data": { "payload": [/* cards */] },
-  "stage_counts": { "lead": 12, "qualified": 8, "proposal": 3 },
-  "total_items": 23
+  "id": 102,
+  "funnel_id": 10,
+  "funnel_stage": "lead",
+  "position": 1,
+  "item_details": {
+    "title": "Oportunidade ACME",
+    "status": "open",
+    "priority": "high",
+    "value": 1500
+  },
+  "created_at": "2026-05-18T16:00:00Z"
 }
 ```
+
+---
+
+## Atualizar card
+
+```http
+PATCH /kanban_items/{id}
+PUT /kanban_items/{id}
+```
+
+<ParamField path="id" type="integer" required>ID do card</ParamField>
+
+<Note>
+  Use este endpoint pra atualizar **detalhes** do card. Pra mover de etapa
+  ou funil, use os endpoints específicos em [Movimentação](/api-reference/kanban/movement)
+  — eles disparam automações.
+</Note>
+
+### Requisição
+
+```bash cURL
+curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101 \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "kanban_item": {
+      "item_details": {
+        "value": 7500,
+        "priority": "urgent",
+        "description": "Aumentou ticket — agora considerando Infinity"
+      }
+    }
+  }'
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 101,
+  "item_details": {
+    "value": 7500,
+    "priority": "urgent",
+    "description": "Aumentou ticket — agora considerando Infinity"
+  },
+  "updated_at": "2026-05-18T16:30:00Z"
+}
+```
+
+---
+
+## Excluir card
+
+```http
+DELETE /kanban_items/{id}
+```
+
+<ParamField path="id" type="integer" required>ID do card</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101 \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `204`
+
+Sem corpo. Status HTTP `204 No Content`.
+
+---
+
+## Códigos de resposta
+
+| Código | Quando acontece |
+| --- | --- |
+| `200 OK` | Listagem, leitura ou atualização |
+| `201 Created` | Card criado |
+| `204 No Content` | Excluído com sucesso |
+| `400 Bad Request` | Payload inválido |
+| `403 Forbidden` | Sem permissão no funil |
+| `404 Not Found` | Card não existe |
+| `422 Unprocessable Entity` | Funnel/stage_id inválido, ou agentes não pertencem à conta |

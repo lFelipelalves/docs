@@ -7,17 +7,29 @@ Os endpoints de movimentação são separados do `PATCH /kanban_items/:id` porqu
 disparam **automações de etapa** e atualizam o histórico de tempo por estágio.
 Use sempre eles em vez de `PATCH` quando for trocar etapa/funil.
 
-## Endpoints
+**Base:** `https://chat.lfautomatiza.com/api/v1/accounts/{account_id}`
 
-| Método | Endpoint | Descrição |
-| --- | --- | --- |
-| `POST` | `/kanban_items/:id/move_to_stage` | Move pra outra etapa (mesmo funil ou outro) |
-| `POST` | `/kanban_items/:id/move` | Move entre funil/etapa |
-| `POST` | `/kanban_items/reorder` | Reordena cards no quadro |
+---
 
 ## Mover pra outra etapa
 
-```bash
+```http
+POST /kanban_items/{id}/move_to_stage
+```
+
+<ParamField path="id" type="integer" required>ID do card</ParamField>
+<ParamField body="funnel_stage" type="string" required>ID da etapa destino</ParamField>
+<ParamField body="funnel_id" type="integer">Se mover pra outro funil, especifique aqui</ParamField>
+
+<Info>
+  Mover pra etapa cujo nome inclui `won` ou `lost` automaticamente atualiza
+  `item_details.status`. Pra forçar manualmente, use o endpoint `change_status`
+  documentado em [Cards](/api-reference/kanban/items).
+</Info>
+
+### Requisição — mover no mesmo funil
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/move_to_stage \
   -H "api_access_token: $TOKEN" \
   -H "Content-Type: application/json" \
@@ -26,26 +38,98 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/mo
   }'
 ```
 
-Se quiser mover pra etapa de **outro funil**:
+### Requisição — mover entre funis
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/move_to_stage \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "funnel_stage": "onboarding",
+    "funnel_id": 22
+  }'
+```
+
+### Resposta `200`
 
 ```json
 {
+  "id": 101,
+  "funnel_id": 22,
   "funnel_stage": "onboarding",
-  "funnel_id": 22
+  "previous_funnel_id": 10,
+  "previous_funnel_stage": "won",
+  "position": 1,
+  "moved_at": "2026-05-18T17:00:00Z",
+  "automations_triggered": [
+    { "automation_id": 4, "action": "send_message", "result": "success" }
+  ]
 }
 ```
 
-<Info>
-  Mover pra etapa cujo nome inclui `won` ou `lost` automaticamente atualiza
-  `item_details.status`. Pra forçar manualmente, use [`change_status`](/api-reference/kanban/items).
-</Info>
+---
+
+## Mover (forma genérica)
+
+```http
+POST /kanban_items/{id}/move
+```
+
+Versão genérica que aceita `funnel_id` + `funnel_stage` no mesmo payload.
+Equivalente ao `move_to_stage` quando você sempre quer informar os dois.
+
+<ParamField path="id" type="integer" required>ID do card</ParamField>
+<ParamField body="funnel_id" type="integer" required>Funil destino</ParamField>
+<ParamField body="funnel_stage" type="string" required>Etapa destino</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/101/move \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "funnel_id": 10,
+    "funnel_stage": "won"
+  }'
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 101,
+  "funnel_id": 10,
+  "funnel_stage": "won",
+  "position": 1,
+  "moved_at": "2026-05-18T17:15:00Z"
+}
+```
+
+---
 
 ## Reordenar cards na etapa
 
-Quando um agente arrasta cards no Kanban, o front chama esse endpoint
-com todas as posições novas:
+```http
+POST /kanban_items/reorder
+```
 
-```bash
+Quando um agente arrasta cards no Kanban, o front chama esse endpoint
+com todas as posições novas em uma só requisição.
+
+<ParamField body="positions" type="array" required>
+  Array de objetos com `{ id, position, funnel_stage }`
+</ParamField>
+
+#### Estrutura de cada objeto em `positions`
+
+<ParamField body="positions[].id" type="integer" required>ID do card</ParamField>
+<ParamField body="positions[].position" type="integer" required>Nova posição (1-indexed)</ParamField>
+<ParamField body="positions[].funnel_stage" type="string" required>Etapa onde fica</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/reorder \
   -H "api_access_token: $TOKEN" \
   -H "Content-Type: application/json" \
@@ -58,10 +142,38 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/reorde
   }'
 ```
 
-### Quando usar `move_to_stage` vs `move`
+### Resposta `200`
+
+```json
+{
+  "reordered_count": 3,
+  "positions": [
+    { "id": 101, "position": 1, "funnel_stage": "lead" },
+    { "id": 102, "position": 2, "funnel_stage": "lead" },
+    { "id": 103, "position": 3, "funnel_stage": "lead" }
+  ]
+}
+```
+
+---
+
+## Quando usar cada endpoint
 
 | Cenário | Endpoint |
 | --- | --- |
 | Card sobe/desce no funil atual | `move_to_stage` |
-| Card vai pra outro funil (ex: ganhou venda, agora vai pra Onboarding) | `move` |
-| Apenas reordena dentro da mesma etapa (drag-and-drop visual) | `reorder` |
+| Card vai pra outro funil (ex: ganhou venda → Onboarding) | `move_to_stage` com `funnel_id` ou `move` |
+| Apenas reordena visual dentro da mesma etapa | `reorder` |
+| Mudar só prioridade/valor sem mover de etapa | `PATCH /kanban_items/:id` ([Cards](/api-reference/kanban/items)) |
+
+---
+
+## Códigos de resposta
+
+| Código | Quando acontece |
+| --- | --- |
+| `200 OK` | Movimento bem-sucedido (automações disparam) |
+| `400 Bad Request` | `funnel_stage` não existe no funil destino |
+| `403 Forbidden` | Sem permissão no funil destino |
+| `404 Not Found` | Card ou funil/etapa não encontrado |
+| `422 Unprocessable Entity` | `positions` mal formado |

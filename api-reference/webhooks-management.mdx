@@ -1,24 +1,30 @@
 ---
 title: "Webhooks (gestão via API)"
-description: "Criar, listar e remover webhooks da conta programaticamente."
+description: "Criar, listar, atualizar e remover webhooks da conta programaticamente."
 ---
 
 Esta página cobre **a gestão dos webhooks** via API — como cadastrar URLs receptoras
 e gerenciar suas configurações. Para entender os **eventos** que esses webhooks
 recebem (payload, retry, validação de assinatura), veja [Webhooks](/essentials/webhooks).
 
+**Base:** `https://chat.lfautomatiza.com/api/v1/accounts/{account_id}`
+
+---
+
 ## Listar webhooks
 
 ```http
-GET /api/v1/accounts/{account_id}/webhooks
+GET /webhooks
 ```
 
-```bash
+### Requisição
+
+```bash cURL
 curl https://chat.lfautomatiza.com/api/v1/accounts/1/webhooks \
   -H "api_access_token: $TOKEN"
 ```
 
-### Resposta
+### Resposta `200`
 
 ```json
 {
@@ -27,36 +33,29 @@ curl https://chat.lfautomatiza.com/api/v1/accounts/1/webhooks \
       "id": 1,
       "url": "https://meu-n8n.com/webhook/lf-events",
       "account_id": 1,
-      "subscriptions": ["conversation_created", "message_created"]
+      "subscriptions": ["conversation_created", "message_created"],
+      "created_at": "2026-04-12T10:00:00Z"
+    },
+    {
+      "id": 2,
+      "url": "https://outro-servico.com/webhooks",
+      "subscriptions": ["kanban.item.stage_changed", "kanban.item.status_changed"],
+      "created_at": "2026-04-15T14:30:00Z"
     }
   ]
 }
 ```
 
+---
+
 ## Criar webhook
 
 ```http
-POST /api/v1/accounts/{account_id}/webhooks
+POST /webhooks
 ```
 
-| Campo | Tipo | Obrigatório | Descrição |
-| --- | --- | --- | --- |
-| `url` | string | ✅ | HTTPS, público, retorna 200 em <5s |
-| `subscriptions` | array | ✅ | Lista de eventos que esse webhook recebe |
-
-```bash
-curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/webhooks \
-  -H "api_access_token: $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://meu-n8n.com/webhook/lf-events",
-    "subscriptions": [
-      "conversation_created",
-      "message_created",
-      "conversation_status_changed"
-    ]
-  }'
-```
+<ParamField body="url" type="string" required>HTTPS, público, retorna 200 em <5s</ParamField>
+<ParamField body="subscriptions" type="array" required>Lista de eventos que esse webhook recebe</ParamField>
 
 ### Eventos disponíveis pra subscription
 
@@ -85,42 +84,107 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/webhooks \
 - `kanban.item.stage_changed`
 - `kanban.item.status_changed`
 
+### Requisição
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/webhooks \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://meu-n8n.com/webhook/lf-events",
+    "subscriptions": [
+      "conversation_created",
+      "message_created",
+      "conversation_status_changed"
+    ]
+  }'
+```
+
+### Resposta `201`
+
+```json
+{
+  "id": 3,
+  "url": "https://meu-n8n.com/webhook/lf-events",
+  "subscriptions": [
+    "conversation_created",
+    "message_created",
+    "conversation_status_changed"
+  ],
+  "account_id": 1,
+  "created_at": "2026-05-19T00:30:00Z"
+}
+```
+
+---
+
 ## Atualizar webhook
 
 ```http
-PATCH /api/v1/accounts/{account_id}/webhooks/{id}
+PATCH /webhooks/{id}
+PUT /webhooks/{id}
 ```
 
-```bash
-curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/webhooks/1 \
+<ParamField path="id" type="integer" required>ID do webhook</ParamField>
+<ParamField body="url" type="string">Nova URL</ParamField>
+<ParamField body="subscriptions" type="array">Nova lista de eventos (substitui completamente a anterior)</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/webhooks/3 \
   -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
   -d '{
     "subscriptions": ["message_created"]
   }'
 ```
 
-Atualizar `subscriptions` substitui completamente a lista anterior.
+### Resposta `200`
+
+```json
+{
+  "id": 3,
+  "url": "https://meu-n8n.com/webhook/lf-events",
+  "subscriptions": ["message_created"],
+  "updated_at": "2026-05-19T00:45:00Z"
+}
+```
+
+---
 
 ## Excluir webhook
 
 ```http
-DELETE /api/v1/accounts/{account_id}/webhooks/{id}
+DELETE /webhooks/{id}
 ```
 
-```bash
-curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/webhooks/1 \
+<ParamField path="id" type="integer" required>ID do webhook</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/webhooks/3 \
   -H "api_access_token: $TOKEN"
 ```
 
+### Resposta `204`
+
+Sem corpo.
+
+---
+
 ## Webhook secret (validação de assinatura)
 
-Quando configurar secret via UI, todo POST vem com header de assinatura
-HMAC-SHA256. Veja [Webhooks → Verificação de assinatura](/essentials/webhooks#verificação-de-assinatura)
+Quando configurar `secret` via UI da plataforma, todo POST vem com header de
+assinatura HMAC-SHA256. Veja [Webhooks → Verificação de assinatura](/essentials/webhooks)
 para o código de validação em Node.js, Python, etc.
+
+---
 
 ## Comportamento de retry
 
-Se sua URL não retornar `2xx` em até 5s, há retentativa:
+Se sua URL não retornar `2xx` em até 5s, há retentativas automáticas:
 
 | Tentativa | Espera |
 | --- | --- |
@@ -129,7 +193,12 @@ Se sua URL não retornar `2xx` em até 5s, há retentativa:
 | 3ª retry | 10min depois |
 | Após 3 falhas | Descartado |
 
-Não há fila persistente — você é responsável por absorver o evento com sucesso na sua URL.
+<Warning>
+  Não há fila persistente — você é responsável por absorver o evento com sucesso
+  na sua URL. Eventos descartados não voltam.
+</Warning>
+
+---
 
 ## Boas práticas
 
@@ -144,18 +213,23 @@ Não há fila persistente — você é responsável por absorver o evento com su
     é o caminho mais rápido pra perder evento por timeout.
   </Accordion>
   <Accordion title="Separe webhooks por uso">
-    Em vez de 1 webhook subscrito a 15 eventos, considere 3 webhooks subscrevendo
-    aos eventos por área (vendas, suporte, financeiro). Mais fácil de monitorar
-    e desligar parcialmente em caso de problema.
+    Em vez de 1 webhook subscrito a 15 eventos, considere 3 webhooks por área
+    (vendas, suporte, financeiro). Mais fácil de monitorar e desligar parcialmente
+    em caso de problema.
+  </Accordion>
+  <Accordion title="Sempre HTTPS">
+    URLs HTTP são rejeitadas na criação. Use HTTPS válido (Let's Encrypt grátis serve).
   </Accordion>
 </AccordionGroup>
+
+---
 
 ## Códigos de resposta
 
 | Código | Quando acontece |
 | --- | --- |
-| `200 OK` | Listagem / leitura |
+| `200 OK` | Listagem / atualização |
 | `201 Created` | Webhook criado |
 | `204 No Content` | Removido |
 | `403 Forbidden` | Não é administrador |
-| `422 Unprocessable Entity` | URL inválida ou subscription desconhecida |
+| `422 Unprocessable Entity` | URL inválida (não-HTTPS, malformada) ou subscription desconhecida |

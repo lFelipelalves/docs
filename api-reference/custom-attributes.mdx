@@ -10,54 +10,115 @@ preenchido em **todas** as conversas ou todos os contatos.
 Exemplo de uso: armazenar `valor_oportunidade`, `categoria_cliente`, `id_pedido`,
 `temperatura_lead`, etc.
 
+**Base:** `https://chat.lfautomatiza.com/api/v1/accounts/{account_id}`
+
+---
+
 ## Listar definições
 
 ```http
-GET /api/v1/accounts/{account_id}/custom_attribute_definitions
+GET /custom_attribute_definitions
 ```
 
-| Parâmetro | Descrição |
-| --- | --- |
-| `attribute_model` | `0` = atributo de **conversa**, `1` = atributo de **contato** |
+<ParamField query="attribute_model" type="enum">`0` = atributo de **conversa**, `1` = atributo de **contato**</ParamField>
 
-```bash
+### Requisição
+
+```bash cURL
 curl "https://chat.lfautomatiza.com/api/v1/accounts/1/custom_attribute_definitions?attribute_model=1" \
   -H "api_access_token: $TOKEN"
 ```
 
+### Resposta `200`
+
+```json
+[
+  {
+    "id": 12,
+    "attribute_display_name": "Origem do Lead",
+    "attribute_display_type": 6,
+    "attribute_key": "origem_lead",
+    "attribute_description": "Por onde o lead chegou até a empresa",
+    "attribute_values": ["google-ads", "meta-ads", "indicacao", "organico"],
+    "attribute_model": 1,
+    "created_at": "2026-04-12T10:00:00Z"
+  },
+  {
+    "id": 13,
+    "attribute_display_name": "Valor Lifetime",
+    "attribute_display_type": 2,
+    "attribute_key": "valor_lifetime",
+    "attribute_model": 1
+  }
+]
+```
+
+---
+
+## Detalhe de uma definição
+
+```http
+GET /custom_attribute_definitions/{id}
+```
+
+<ParamField path="id" type="integer" required>ID da definição</ParamField>
+
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/custom_attribute_definitions/12 \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 12,
+  "attribute_display_name": "Origem do Lead",
+  "attribute_display_type": 6,
+  "attribute_key": "origem_lead",
+  "attribute_description": "Por onde o lead chegou até a empresa",
+  "attribute_values": ["google-ads", "meta-ads", "indicacao", "organico"],
+  "attribute_model": 1,
+  "regex_pattern": null,
+  "regex_cue": null
+}
+```
+
+---
+
 ## Criar definição
 
 ```http
-POST /api/v1/accounts/{account_id}/custom_attribute_definitions
+POST /custom_attribute_definitions
 ```
 
-| Campo | Tipo | Obrigatório | Descrição |
-| --- | --- | --- | --- |
-| `attribute_display_name` | string | ✅ | Nome legível ("Valor da Oportunidade") |
-| `attribute_display_type` | enum | ✅ | Tipo do campo (ver abaixo) |
-| `attribute_description` | string | | Tooltip pros agentes |
-| `attribute_key` | string | | Slug auto-gerado se omitir (`valor_da_oportunidade`) |
-| `attribute_values` | array | | Apenas para `list` — opções da lista |
-| `attribute_model` | integer | ✅ | `0` = conversa, `1` = contato |
-| `regex_pattern` | string | | Validação opcional (apenas tipo text) |
-| `regex_cue` | string | | Mensagem mostrada se regex falhar |
+<ParamField body="attribute_display_name" type="string" required>Nome legível ("Valor da Oportunidade")</ParamField>
+<ParamField body="attribute_display_type" type="integer" required>Tipo do campo (ver tabela abaixo)</ParamField>
+<ParamField body="attribute_description" type="string">Tooltip pros agentes</ParamField>
+<ParamField body="attribute_key" type="string">Slug auto-gerado se omitir (`valor_da_oportunidade`)</ParamField>
+<ParamField body="attribute_values" type="array">Apenas para `list` — opções da lista</ParamField>
+<ParamField body="attribute_model" type="integer" required>`0` = conversa, `1` = contato</ParamField>
+<ParamField body="regex_pattern" type="string">Validação opcional (apenas tipo text)</ParamField>
+<ParamField body="regex_cue" type="string">Mensagem mostrada se regex falhar</ParamField>
 
 ### Tipos de atributo (`attribute_display_type`)
 
-| Tipo | Numérico | Exemplo de uso |
+| Numérico | Tipo | Exemplo |
 | --- | --- | --- |
-| `text` | 0 | "ID do pedido", "Observação" |
-| `number` | 1 | "Valor da oportunidade", "Quantidade" |
-| `currency` | 2 | "Ticket médio" |
-| `percent` | 3 | "Probabilidade de fechamento" |
-| `link` | 4 | "URL do CRM externo" |
-| `date` | 5 | "Data prevista de fechamento" |
-| `list` | 6 | "Origem do lead" (drop-down) |
-| `checkbox` | 7 | "Aceita newsletter" |
+| `0` | `text` | "ID do pedido", "Observação" |
+| `1` | `number` | "Quantidade de pedidos" |
+| `2` | `currency` | "Valor da oportunidade" |
+| `3` | `percent` | "Probabilidade de fechamento" |
+| `4` | `link` | "URL do CRM externo" |
+| `5` | `date` | "Data prevista de fechamento" |
+| `6` | `list` | "Origem do lead" (drop-down) |
+| `7` | `checkbox` | "Aceita newsletter" |
 
-### Exemplo: criar atributo de lista
+### Requisição — atributo do tipo lista
 
-```bash
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/custom_attribute_definitions \
   -H "api_access_token: $TOKEN" \
   -H "Content-Type: application/json" \
@@ -65,39 +126,117 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/custom_attribute_de
     "attribute_display_name": "Origem do Lead",
     "attribute_display_type": 6,
     "attribute_key": "origem_lead",
+    "attribute_description": "De onde veio esse lead",
     "attribute_values": ["google-ads", "meta-ads", "indicacao", "organico", "evento"],
     "attribute_model": 1
   }'
 ```
 
+### Resposta `201`
+
+```json
+{
+  "id": 14,
+  "attribute_display_name": "Origem do Lead",
+  "attribute_display_type": 6,
+  "attribute_key": "origem_lead",
+  "attribute_values": ["google-ads", "meta-ads", "indicacao", "organico", "evento"],
+  "attribute_model": 1,
+  "created_at": "2026-05-18T22:00:00Z"
+}
+```
+
+### Requisição — atributo do tipo currency
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/custom_attribute_definitions \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "attribute_display_name": "Valor da Oportunidade",
+    "attribute_display_type": 2,
+    "attribute_key": "valor_oportunidade",
+    "attribute_model": 0
+  }'
+```
+
+---
+
 ## Atualizar definição
 
 ```http
-PATCH /api/v1/accounts/{account_id}/custom_attribute_definitions/{id}
+PATCH /custom_attribute_definitions/{id}
+PUT /custom_attribute_definitions/{id}
 ```
+
+<ParamField path="id" type="integer" required>ID da definição</ParamField>
 
 <Warning>
   Mudar o `attribute_key` quebra todas as integrações que já leem esse campo.
   Mude só o `attribute_display_name` se quiser renomear pros agentes.
 </Warning>
 
+### Requisição
+
+```bash cURL
+curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/custom_attribute_definitions/14 \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "attribute_values": ["google-ads", "meta-ads", "linkedin-ads", "indicacao", "organico", "evento"]
+  }'
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 14,
+  "attribute_values": ["google-ads", "meta-ads", "linkedin-ads", "indicacao", "organico", "evento"],
+  "updated_at": "2026-05-18T22:15:00Z"
+}
+```
+
+---
+
 ## Excluir definição
 
 ```http
-DELETE /api/v1/accounts/{account_id}/custom_attribute_definitions/{id}
+DELETE /custom_attribute_definitions/{id}
 ```
 
-Os valores preenchidos nessa chave em conversas/contatos são apagados também.
+<ParamField path="id" type="integer" required>ID da definição</ParamField>
+
+Os valores já preenchidos nessa chave em conversas/contatos são apagados também.
+
+### Requisição
+
+```bash cURL
+curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/custom_attribute_definitions/14 \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `204`
+
+Sem corpo.
+
+---
 
 ## Preencher valor em conversa
 
 ```http
-POST /api/v1/accounts/{account_id}/conversations/{id}/custom_attributes
+POST /conversations/{id}/custom_attributes
 ```
 
-```bash
+<ParamField path="id" type="integer" required>ID da conversa</ParamField>
+<ParamField body="custom_attributes" type="object" required>Mapa chave → valor</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/custom_attributes \
   -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
   -d '{
     "custom_attributes": {
       "valor_oportunidade": 5000,
@@ -106,15 +245,35 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/
   }'
 ```
 
+### Resposta `200`
+
+```json
+{
+  "id": 1287,
+  "custom_attributes": {
+    "valor_oportunidade": 5000,
+    "origem_lead": "google-ads"
+  }
+}
+```
+
+---
+
 ## Preencher valor em contato
 
 ```http
-PATCH /api/v1/accounts/{account_id}/contacts/{id}
+PATCH /contacts/{id}
 ```
 
-```bash
+<ParamField path="id" type="integer" required>ID do contato</ParamField>
+<ParamField body="custom_attributes" type="object" required>Mapa chave → valor</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/542 \
   -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
   -d '{
     "custom_attributes": {
       "categoria": "vip",
@@ -123,13 +282,30 @@ curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/542 \
   }'
 ```
 
+### Resposta `200`
+
+```json
+{
+  "id": 542,
+  "custom_attributes": {
+    "categoria": "vip",
+    "valor_lifetime": 12500
+  }
+}
+```
+
+---
+
 ## Filtrar por atributo customizado
 
 Em filtros de conversa ou contato, use o prefixo `custom_attributes.`:
 
-```bash
+### Requisição — filtro avançado de conversa
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/filter \
   -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
   -d '{
     "payload": [
       {
@@ -141,11 +317,31 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/filte
   }'
 ```
 
+### Requisição — filtro avançado de contato
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/filter \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "payload": [
+      {
+        "attribute_key": "custom_attributes.valor_lifetime",
+        "filter_operator": "greater_than",
+        "values": [10000]
+      }
+    ]
+  }'
+```
+
+---
+
 ## Códigos de resposta
 
 | Código | Quando acontece |
 | --- | --- |
-| `200 OK` | Listagem / leitura / atualização |
+| `200 OK` | Listagem / atualização |
 | `201 Created` | Definição criada |
-| `204 No Content` | Excluído |
+| `204 No Content` | Excluída |
+| `403 Forbidden` | Apenas administrador pode gerenciar definições |
 | `422 Unprocessable Entity` | Chave duplicada ou regex inválido |

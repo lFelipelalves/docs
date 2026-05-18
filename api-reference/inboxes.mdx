@@ -1,24 +1,30 @@
 ---
 title: "Inboxes (canais)"
-description: "Gestão dos canais de atendimento — WhatsApp, Instagram, Webchat, E-mail e os demais."
+description: "Gestão dos canais de atendimento, horário comercial, agentes e bots."
 ---
 
 Uma **inbox** representa um canal de comunicação conectado à plataforma. Cada inbox
-tem um conjunto de agentes atribuídos, configurações próprias (horário, mensagem
-fora de expediente, auto-resolve) e regras de roteamento.
+tem agentes atribuídos, configurações próprias (horário, mensagem fora de expediente,
+auto-resolve) e regras de roteamento.
+
+**Base:** `https://chat.lfautomatiza.com/api/v1/accounts/{account_id}`
+
+---
 
 ## Listar inboxes
 
 ```http
-GET /api/v1/accounts/{account_id}/inboxes
+GET /inboxes
 ```
 
-```bash
+### Requisição
+
+```bash cURL
 curl https://chat.lfautomatiza.com/api/v1/accounts/1/inboxes \
   -H "api_access_token: $TOKEN"
 ```
 
-### Resposta
+### Resposta `200`
 
 ```json
 {
@@ -32,6 +38,9 @@ curl https://chat.lfautomatiza.com/api/v1/accounts/1/inboxes \
       "greeting_message": "Olá! Em que posso ajudar?",
       "working_hours_enabled": true,
       "out_of_office_message": "Nosso horário é seg-sex, 9h-18h.",
+      "enable_auto_assignment": true,
+      "csat_survey_enabled": false,
+      "timezone": "America/Sao_Paulo",
       "auto_assignment_config": { "max_assignment_limit": 3 }
     },
     {
@@ -39,41 +48,143 @@ curl https://chat.lfautomatiza.com/api/v1/accounts/1/inboxes \
       "name": "Webchat Site",
       "channel_type": "Channel::WebWidget",
       "website_url": "https://lfautomatiza.com",
-      "widget_color": "#00B86B"
+      "widget_color": "#00B86B",
+      "welcome_title": "Como podemos ajudar?",
+      "welcome_tagline": "Resposta em até 5 minutos"
     }
   ]
 }
 ```
 
+---
+
 ## Detalhe da inbox
 
 ```http
-GET /api/v1/accounts/{account_id}/inboxes/{id}
+GET /inboxes/{id}
 ```
+
+<ParamField path="id" type="integer" required>ID da inbox</ParamField>
+
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/inboxes/1 \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 1,
+  "name": "WhatsApp Principal",
+  "channel_type": "Channel::Whatsapp",
+  "phone_number": "+5511936233536",
+  "greeting_enabled": true,
+  "greeting_message": "Olá! Em que posso ajudar?",
+  "working_hours_enabled": true,
+  "out_of_office_message": "Nosso horário é seg-sex, 9h-18h.",
+  "timezone": "America/Sao_Paulo",
+  "working_hours": [
+    { "day_of_week": 0, "closed_all_day": true },
+    { "day_of_week": 1, "open_hour": 9, "open_minutes": 0, "close_hour": 18, "close_minutes": 0 }
+  ],
+  "enable_auto_assignment": true,
+  "auto_assignment_config": { "max_assignment_limit": 3 },
+  "allow_messages_after_resolved": true,
+  "csat_survey_enabled": false
+}
+```
+
+---
+
+## Criar inbox
+
+```http
+POST /inboxes
+```
+
+<ParamField body="name" type="string" required>Nome da inbox</ParamField>
+<ParamField body="channel" type="object" required>Configuração do canal (campos variam por `type`)</ParamField>
+
+#### Exemplo `channel` para WhatsApp via API channel
+
+```json
+{
+  "type": "api",
+  "webhook_url": "https://seu-webhook.com/inbox-events"
+}
+```
+
+#### Exemplo `channel` para Webchat
+
+```json
+{
+  "type": "web_widget",
+  "website_url": "https://lfautomatiza.com",
+  "welcome_title": "Como podemos ajudar?",
+  "welcome_tagline": "Resposta em até 5 minutos",
+  "widget_color": "#00B86B"
+}
+```
+
+### Requisição
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/inboxes \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Site - Webchat",
+    "channel": {
+      "type": "web_widget",
+      "website_url": "https://lfautomatiza.com",
+      "welcome_title": "Como podemos ajudar?",
+      "widget_color": "#00B86B"
+    }
+  }'
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 4,
+  "name": "Site - Webchat",
+  "channel_type": "Channel::WebWidget",
+  "website_token": "xpto1234abcd",
+  "widget_color": "#00B86B"
+}
+```
+
+---
 
 ## Atualizar inbox
 
 ```http
-PATCH /api/v1/accounts/{account_id}/inboxes/{id}
+PATCH /inboxes/{id}
 ```
 
-Campos editáveis comuns:
+<ParamField path="id" type="integer" required>ID da inbox</ParamField>
+<ParamField body="name" type="string">Nome da inbox</ParamField>
+<ParamField body="greeting_enabled" type="boolean">Liga mensagem de saudação inicial</ParamField>
+<ParamField body="greeting_message" type="string">Texto da saudação</ParamField>
+<ParamField body="working_hours_enabled" type="boolean">Liga horário comercial</ParamField>
+<ParamField body="out_of_office_message" type="string">Mensagem fora do expediente</ParamField>
+<ParamField body="csat_survey_enabled" type="boolean">Dispara CSAT ao resolver</ParamField>
+<ParamField body="enable_auto_assignment" type="boolean">Distribuição automática round-robin</ParamField>
+<ParamField body="auto_assignment_config" type="object">`{ max_assignment_limit }` — máximo de conversas por agente</ParamField>
+<ParamField body="allow_messages_after_resolved" type="boolean">Cliente pode mandar msg após resolvida (reabre)</ParamField>
+<ParamField body="working_hours" type="array">Configuração de horário (ver seção abaixo)</ParamField>
+<ParamField body="timezone" type="string">Fuso (`America/Sao_Paulo`)</ParamField>
 
-| Campo | Tipo | Descrição |
-| --- | --- | --- |
-| `name` | string | Nome da inbox |
-| `greeting_enabled` | boolean | Liga mensagem de saudação inicial |
-| `greeting_message` | string | Texto da saudação |
-| `working_hours_enabled` | boolean | Liga horário comercial |
-| `out_of_office_message` | string | Mensagem fora do expediente |
-| `csat_survey_enabled` | boolean | Dispara pesquisa CSAT ao resolver |
-| `enable_auto_assignment` | boolean | Distribuição automática (round-robin) |
-| `auto_assignment_config.max_assignment_limit` | integer | Máximo de conversas simultâneas por agente |
-| `allow_messages_after_resolved` | boolean | Cliente pode mandar msg após resolvida (reabre) |
+### Requisição
 
-```bash
+```bash cURL
 curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/inboxes/1 \
   -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
   -d '{
     "greeting_enabled": true,
     "greeting_message": "Olá! Como podemos ajudar?",
@@ -82,77 +193,236 @@ curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/inboxes/1 \
   }'
 ```
 
-## Excluir inbox
-
-```http
-DELETE /api/v1/accounts/{account_id}/inboxes/{id}
-```
-
-<Warning>
-  Excluir a inbox **apaga todas as conversas** vinculadas a ela. Considere
-  desconectar o canal em vez de excluir, se quiser preservar histórico.
-</Warning>
-
-## Agentes da inbox
-
-Quem pode atender:
-
-```http
-GET /api/v1/accounts/{account_id}/inboxes/{id}/inbox_members
-POST /api/v1/accounts/{account_id}/inboxes/{id}/inbox_members
-DELETE /api/v1/accounts/{account_id}/inboxes/{id}/inbox_members
-```
-
-```bash
-curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/inboxes/1/inbox_members \
-  -H "api_access_token: $TOKEN" \
-  -d '{ "user_ids": [7, 11, 15] }'
-```
-
-O array enviado **substitui** a lista atual de agentes da inbox.
-
-## Configurações de horário comercial
-
-```http
-PATCH /api/v1/accounts/{account_id}/inboxes/{id}
-```
-
-Payload com `working_hours`:
+### Resposta `200`
 
 ```json
 {
-  "working_hours": [
-    { "day_of_week": 0, "closed_all_day": true },
-    { "day_of_week": 1, "open_hour": 9, "open_minutes": 0, "close_hour": 18, "close_minutes": 0 },
-    { "day_of_week": 2, "open_hour": 9, "open_minutes": 0, "close_hour": 18, "close_minutes": 0 },
-    { "day_of_week": 3, "open_hour": 9, "open_minutes": 0, "close_hour": 18, "close_minutes": 0 },
-    { "day_of_week": 4, "open_hour": 9, "open_minutes": 0, "close_hour": 18, "close_minutes": 0 },
-    { "day_of_week": 5, "open_hour": 9, "open_minutes": 0, "close_hour": 18, "close_minutes": 0 },
-    { "day_of_week": 6, "closed_all_day": true }
-  ],
-  "timezone": "America/Sao_Paulo",
-  "working_hours_enabled": true
+  "id": 1,
+  "greeting_enabled": true,
+  "greeting_message": "Olá! Como podemos ajudar?",
+  "enable_auto_assignment": true,
+  "auto_assignment_config": { "max_assignment_limit": 5 },
+  "updated_at": "2026-05-18T20:00:00Z"
 }
 ```
 
-`day_of_week`: 0=Domingo, 1=Segunda, ... 6=Sábado.
+---
 
-## Agent Bot da inbox
-
-Conecte um bot (Captain assistant ou webhook externo) ao canal:
+## Configurar horário comercial
 
 ```http
-GET /api/v1/accounts/{account_id}/inboxes/{id}/agent_bot
-POST /api/v1/accounts/{account_id}/inboxes/{id}/set_agent_bot
+PATCH /inboxes/{id}
 ```
 
-```bash
+Envie o payload com `working_hours` no formato abaixo. `day_of_week`: 0=Domingo, 1=Segunda... 6=Sábado.
+
+### Requisição
+
+```bash cURL
+curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/inboxes/1 \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "timezone": "America/Sao_Paulo",
+    "working_hours_enabled": true,
+    "out_of_office_message": "Nosso horário é seg-sex, 9h-18h.",
+    "working_hours": [
+      { "day_of_week": 0, "closed_all_day": true },
+      { "day_of_week": 1, "open_hour": 9, "open_minutes": 0, "close_hour": 18, "close_minutes": 0 },
+      { "day_of_week": 2, "open_hour": 9, "open_minutes": 0, "close_hour": 18, "close_minutes": 0 },
+      { "day_of_week": 3, "open_hour": 9, "open_minutes": 0, "close_hour": 18, "close_minutes": 0 },
+      { "day_of_week": 4, "open_hour": 9, "open_minutes": 0, "close_hour": 18, "close_minutes": 0 },
+      { "day_of_week": 5, "open_hour": 9, "open_minutes": 0, "close_hour": 18, "close_minutes": 0 },
+      { "day_of_week": 6, "closed_all_day": true }
+    ]
+  }'
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 1,
+  "working_hours_enabled": true,
+  "timezone": "America/Sao_Paulo",
+  "working_hours": [
+    { "day_of_week": 0, "closed_all_day": true },
+    { "day_of_week": 1, "open_hour": 9, "close_hour": 18 }
+  ]
+}
+```
+
+---
+
+## Excluir inbox
+
+```http
+DELETE /inboxes/{id}
+```
+
+<ParamField path="id" type="integer" required>ID da inbox</ParamField>
+
+<Warning>
+  Excluir a inbox **apaga todas as conversas vinculadas**. Considere desconectar
+  o canal em vez de excluir se quiser preservar histórico.
+</Warning>
+
+### Requisição
+
+```bash cURL
+curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/inboxes/4 \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `204`
+
+Sem corpo.
+
+---
+
+## Listar agentes da inbox
+
+```http
+GET /inboxes/{id}/inbox_members
+```
+
+<ParamField path="id" type="integer" required>ID da inbox</ParamField>
+
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/inboxes/1/inbox_members \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+[
+  { "id": 7, "name": "Sabrina", "availability_status": "online" },
+  { "id": 11, "name": "Marcos", "availability_status": "busy" },
+  { "id": 15, "name": "Lucas", "availability_status": "offline" }
+]
+```
+
+---
+
+## Adicionar / substituir agentes da inbox
+
+```http
+POST /inboxes/{id}/inbox_members
+```
+
+O array enviado **substitui** completamente a lista atual.
+
+<ParamField path="id" type="integer" required>ID da inbox</ParamField>
+<ParamField body="user_ids" type="array" required>IDs dos agentes que devem ter acesso</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/inboxes/1/inbox_members \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "user_ids": [7, 11, 15] }'
+```
+
+### Resposta `200`
+
+```json
+{
+  "inbox_id": 1,
+  "members_count": 3,
+  "user_ids": [7, 11, 15]
+}
+```
+
+---
+
+## Remover agentes específicos
+
+```http
+DELETE /inboxes/{id}/inbox_members
+```
+
+<ParamField path="id" type="integer" required>ID da inbox</ParamField>
+<ParamField body="user_ids" type="array" required>IDs dos agentes a remover</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/inboxes/1/inbox_members \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "user_ids": [15] }'
+```
+
+### Resposta `204`
+
+Sem corpo.
+
+---
+
+## Ver bot vinculado à inbox
+
+```http
+GET /inboxes/{id}/agent_bot
+```
+
+<ParamField path="id" type="integer" required>ID da inbox</ParamField>
+
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/inboxes/1/agent_bot \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{
+  "agent_bot": 4,
+  "bot_name": "Captain - Atendimento Comercial"
+}
+```
+
+---
+
+## Vincular / desvincular bot
+
+```http
+POST /inboxes/{id}/set_agent_bot
+```
+
+<ParamField path="id" type="integer" required>ID da inbox</ParamField>
+<ParamField body="agent_bot" type="integer">ID do bot (passe `null` pra desvincular)</ParamField>
+
+### Requisição — vincular
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/inboxes/1/set_agent_bot \
   -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
   -d '{ "agent_bot": 4 }'
 ```
 
-Passe `agent_bot: null` pra remover o bot.
+### Requisição — desvincular
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/inboxes/1/set_agent_bot \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "agent_bot": null }'
+```
+
+### Resposta `200`
+
+```json
+{ "inbox_id": 1, "agent_bot": 4 }
+```
+
+---
 
 ## Tipos de canal (`channel_type`)
 
@@ -167,12 +437,16 @@ Passe `agent_bot: null` pra remover o bot.
 | `Channel::Sms` | SMS |
 | `Channel::Api` | Canal API customizado |
 
+---
+
 ## Códigos de resposta
 
 | Código | Quando acontece |
 | --- | --- |
-| `200 OK` | Listagem / leitura / atualização |
-| `204 No Content` | Excluído com sucesso |
+| `200 OK` | Sucesso em GET / POST / PATCH |
+| `201 Created` | Inbox criada |
+| `204 No Content` | Inbox excluída ou agentes removidos |
 | `400 Bad Request` | Payload inválido |
-| `403 Forbidden` | Não é administrador |
+| `403 Forbidden` | Apenas administrador pode gerenciar inboxes |
 | `404 Not Found` | Inbox não existe |
+| `422 Unprocessable Entity` | Configuração de canal inválida ou agentes não pertencem à conta |

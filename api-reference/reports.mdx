@@ -1,32 +1,43 @@
 ---
 title: "Relatórios"
-description: "Endpoints de métricas agregadas — conversas, agentes, equipes, inboxes e CSAT."
+description: "Endpoints de métricas agregadas — conversas, agentes, equipes, inboxes, labels e CSAT."
 ---
 
 A API de relatórios retorna métricas agregadas em séries temporais ou totais.
-Endpoints estão no **prefixo `/api/v2/`** (não `/v1/` como o resto).
+Endpoints ficam no **prefixo `/api/v2/`** (não `/v1/` como o resto).
 
-```
-https://chat.lfautomatiza.com/api/v2/accounts/{account_id}/reports/...
-```
+**Base:** `https://chat.lfautomatiza.com/api/v2/accounts/{account_id}/reports`
+
+---
 
 ## Sumário geral
 
 ```http
-GET /api/v2/accounts/{account_id}/reports/summary
+GET /summary
 ```
 
-Retorna contadores em tempo real:
+<ParamField query="since" type="integer">Timestamp Unix de início</ParamField>
+<ParamField query="until" type="integer">Timestamp Unix de fim</ParamField>
+<ParamField query="type" type="enum">`account` (padrão), `agent`, `inbox`, `team`, `label`</ParamField>
+<ParamField query="id" type="integer">ID do recurso quando `type ≠ account`</ParamField>
 
-```bash
+### Requisição
+
+```bash cURL
 curl "https://chat.lfautomatiza.com/api/v2/accounts/1/reports/summary?since=1715900000&until=1715972400" \
   -H "api_access_token: $TOKEN"
 ```
+
+### Resposta `200`
 
 ```json
 {
   "open_conversations_count": 47,
   "agents_online_count": 5,
+  "previous_period": {
+    "open_conversations_count": 38,
+    "agents_online_count": 4
+  },
   "average_first_response_time": 142,
   "average_resolution_time": 1843,
   "average_response_time": 67,
@@ -37,34 +48,41 @@ curl "https://chat.lfautomatiza.com/api/v2/accounts/1/reports/summary?since=1715
 }
 ```
 
-| Parâmetro | Descrição |
-| --- | --- |
-| `since` | Timestamp Unix de início |
-| `until` | Timestamp Unix de fim |
-| `type` | `account` (padrão) ou `agent`, `inbox`, `team`, `label` |
-| `id` | ID do recurso quando `type ≠ account` |
+---
 
-## Relatório por conversas (série temporal)
+## Conversations report (série temporal)
 
 ```http
-GET /api/v2/accounts/{account_id}/reports/conversations
+GET /conversations
 ```
 
-```bash
-curl "https://chat.lfautomatiza.com/api/v2/accounts/1/reports/conversations?metric=conversations_count&since=1715900000&until=1715972400&type=account" \
+<ParamField query="metric" type="enum" required>Métrica a calcular (ver tabela abaixo)</ParamField>
+<ParamField query="since" type="integer" required>Timestamp Unix de início</ParamField>
+<ParamField query="until" type="integer" required>Timestamp Unix de fim</ParamField>
+<ParamField query="type" type="enum">`account`, `agent`, `inbox`, `team`, `label`</ParamField>
+<ParamField query="id" type="integer">Quando `type ≠ account`</ParamField>
+<ParamField query="group_by" type="enum">`day` (padrão), `week`, `month`, `year`</ParamField>
+<ParamField query="business_hours" type="boolean">`true` calcula tempos apenas dentro do horário comercial</ParamField>
+
+### Métricas disponíveis (`metric`)
+
+- `conversations_count`
+- `incoming_messages_count`
+- `outgoing_messages_count`
+- `avg_first_response_time`
+- `avg_resolution_time`
+- `resolutions_count`
+- `bot_resolutions_count`
+- `bot_handoffs_count`
+
+### Requisição
+
+```bash cURL
+curl "https://chat.lfautomatiza.com/api/v2/accounts/1/reports/conversations?metric=conversations_count&since=1715900000&until=1715972400&type=account&group_by=day" \
   -H "api_access_token: $TOKEN"
 ```
 
-| Parâmetro | Descrição |
-| --- | --- |
-| `metric` | `conversations_count`, `incoming_messages_count`, `outgoing_messages_count`, `avg_first_response_time`, `avg_resolution_time`, `resolutions_count`, `bot_resolutions_count`, `bot_handoffs_count` |
-| `since` / `until` | Janela de tempo |
-| `type` | `account`, `agent`, `inbox`, `team`, `label` |
-| `id` | Quando `type ≠ account` |
-| `group_by` | `day`, `week`, `month`, `year` |
-| `business_hours` | `true` calcula tempos só dentro do horário comercial |
-
-### Resposta
+### Resposta `200`
 
 ```json
 [
@@ -74,66 +92,239 @@ curl "https://chat.lfautomatiza.com/api/v2/accounts/1/reports/conversations?metr
 ]
 ```
 
+---
+
 ## Sumário por agente
 
 ```http
-GET /api/v2/accounts/{account_id}/reports/agents_summary
+GET /agents_summary
 ```
 
-Lista cada agente com suas métricas no período.
+<ParamField query="since" type="integer" required>Timestamp Unix de início</ParamField>
+<ParamField query="until" type="integer" required>Timestamp Unix de fim</ParamField>
 
-```bash
+### Requisição
+
+```bash cURL
 curl "https://chat.lfautomatiza.com/api/v2/accounts/1/reports/agents_summary?since=1715900000&until=1715972400" \
   -H "api_access_token: $TOKEN"
 ```
 
-Retorna por agente: total de conversas, resolvidas, tempo médio de resposta, tempo
-médio de resolução.
+### Resposta `200`
+
+```json
+[
+  {
+    "id": 7,
+    "name": "Sabrina",
+    "conversations_count": 47,
+    "avg_first_response_time": 89,
+    "avg_resolution_time": 1542,
+    "resolutions_count": 32
+  },
+  {
+    "id": 11,
+    "name": "Marcos",
+    "conversations_count": 23,
+    "avg_first_response_time": 124,
+    "avg_resolution_time": 2103,
+    "resolutions_count": 17
+  }
+]
+```
+
+---
 
 ## Sumário por inbox
 
 ```http
-GET /api/v2/accounts/{account_id}/reports/inboxes_summary
+GET /inboxes_summary
 ```
 
-Mesma estrutura mas agrupando por inbox.
+<ParamField query="since" type="integer" required>Timestamp Unix de início</ParamField>
+<ParamField query="until" type="integer" required>Timestamp Unix de fim</ParamField>
+
+### Requisição
+
+```bash cURL
+curl "https://chat.lfautomatiza.com/api/v2/accounts/1/reports/inboxes_summary?since=1715900000&until=1715972400" \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+[
+  {
+    "id": 1,
+    "name": "WhatsApp Principal",
+    "channel_type": "Channel::Whatsapp",
+    "conversations_count": 98,
+    "avg_first_response_time": 102,
+    "avg_resolution_time": 1843,
+    "resolutions_count": 71
+  },
+  {
+    "id": 2,
+    "name": "Webchat Site",
+    "channel_type": "Channel::WebWidget",
+    "conversations_count": 26,
+    "avg_first_response_time": 67,
+    "avg_resolution_time": 1245,
+    "resolutions_count": 18
+  }
+]
+```
+
+---
 
 ## Sumário por equipe
 
 ```http
-GET /api/v2/accounts/{account_id}/reports/teams_summary
+GET /teams_summary
 ```
+
+Mesma estrutura de `agents_summary` e `inboxes_summary`.
+
+### Requisição
+
+```bash cURL
+curl "https://chat.lfautomatiza.com/api/v2/accounts/1/reports/teams_summary?since=1715900000&until=1715972400" \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+[
+  {
+    "id": 3,
+    "name": "Comercial",
+    "conversations_count": 67,
+    "avg_first_response_time": 78,
+    "avg_resolution_time": 1432,
+    "resolutions_count": 52
+  }
+]
+```
+
+---
 
 ## Sumário por label
 
 ```http
-GET /api/v2/accounts/{account_id}/reports/labels_summary
+GET /labels_summary
 ```
 
-## Métricas em tempo real
+### Requisição
 
-Para dashboards "ao vivo" (não série temporal):
-
-```http
-GET /api/v2/accounts/{account_id}/reports/live/conversations
-GET /api/v2/accounts/{account_id}/reports/live/agents
+```bash cURL
+curl "https://chat.lfautomatiza.com/api/v2/accounts/1/reports/labels_summary?since=1715900000&until=1715972400" \
+  -H "api_access_token: $TOKEN"
 ```
 
-Retorna estado atual sem agregação histórica.
+### Resposta `200`
 
-## CSAT (satisfação)
+```json
+[
+  {
+    "id": 1,
+    "title": "financeiro",
+    "color": "#9333ea",
+    "conversations_count": 47,
+    "avg_resolution_time": 1843
+  }
+]
+```
+
+---
+
+## Conversations live (tempo real)
 
 ```http
-GET /api/v2/accounts/{account_id}/reports/conversations_traffic
+GET /live/conversations
+```
+
+Retorna estado atual (não série temporal). Ideal pra dashboards "ao vivo".
+
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v2/accounts/1/reports/live/conversations \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{
+  "open": 47,
+  "pending": 5,
+  "snoozed": 3,
+  "resolved_today": 24,
+  "unattended_count": 8,
+  "longest_waiting_seconds": 432
+}
+```
+
+---
+
+## Agentes live
+
+```http
+GET /live/agents
+```
+
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v2/accounts/1/reports/live/agents \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+[
+  {
+    "id": 7,
+    "name": "Sabrina",
+    "availability": "online",
+    "open_conversations_count": 4,
+    "avg_response_time_today": 67
+  },
+  {
+    "id": 11,
+    "name": "Marcos",
+    "availability": "busy",
+    "open_conversations_count": 6,
+    "avg_response_time_today": 92
+  }
+]
+```
+
+---
+
+## Relatório CSAT (satisfação)
+
+```http
 GET /api/v2/accounts/{account_id}/csat_reports
 ```
 
-```bash
+<ParamField query="since" type="integer">Timestamp Unix de início</ParamField>
+<ParamField query="until" type="integer">Timestamp Unix de fim</ParamField>
+<ParamField query="user_ids[]" type="array">Filtra por agentes</ParamField>
+<ParamField query="inbox_id" type="integer">Filtra por inbox</ParamField>
+<ParamField query="team_id" type="integer">Filtra por equipe</ParamField>
+
+### Requisição
+
+```bash cURL
 curl "https://chat.lfautomatiza.com/api/v2/accounts/1/csat_reports?since=1715900000&until=1715972400" \
   -H "api_access_token: $TOKEN"
 ```
 
-Retorna:
+### Resposta `200`
 
 ```json
 {
@@ -144,31 +335,77 @@ Retorna:
     "response_rate": 64.4
   },
   "csat_survey_responses": [
-    { "id": 4521, "rating": 5, "feedback_message": "Atendimento excelente!" }
+    {
+      "id": 4521,
+      "rating": 5,
+      "feedback_message": "Atendimento excelente!",
+      "conversation_id": 1287,
+      "agent_id": 7,
+      "created_at": "2026-05-18T15:00:00Z"
+    }
   ]
 }
 ```
 
-## Relatório de bots (Captain / agent bots)
+---
+
+## Relatório de bots
 
 ```http
-GET /api/v2/accounts/{account_id}/reports/bot_metrics
+GET /bot_metrics
 ```
 
-Retorna sessões iniciadas com bot, taxa de auto-resolve, handoffs pra humano, satisfação pós-bot.
+<ParamField query="since" type="integer">Timestamp Unix de início</ParamField>
+<ParamField query="until" type="integer">Timestamp Unix de fim</ParamField>
 
-## Exportação CSV
+### Requisição
 
-A maioria dos endpoints de sumário aceita query `?type=csv` pra retornar arquivo
-em vez de JSON:
+```bash cURL
+curl "https://chat.lfautomatiza.com/api/v2/accounts/1/reports/bot_metrics?since=1715900000&until=1715972400" \
+  -H "api_access_token: $TOKEN"
+```
 
-```bash
-curl "https://chat.lfautomatiza.com/api/v2/accounts/1/reports/conversations?type=csv&since=..." \
+### Resposta `200`
+
+```json
+{
+  "bot_resolutions_count": 142,
+  "bot_handoffs_count": 67,
+  "bot_resolution_rate": 0.68,
+  "avg_bot_interactions_per_session": 4.3,
+  "post_bot_csat_avg": 4.2
+}
+```
+
+---
+
+## Exportar como CSV
+
+A maioria dos endpoints de sumário aceita query `?type=csv` pra retornar arquivo em
+vez de JSON.
+
+### Requisição
+
+```bash cURL
+curl "https://chat.lfautomatiza.com/api/v2/accounts/1/reports/conversations?metric=conversations_count&since=1715900000&until=1715972400&type=csv" \
   -H "api_access_token: $TOKEN" \
   -o relatorio.csv
 ```
 
-CSV vem em **UTF-8 com BOM** e separador `;` — abre direto no Excel BR.
+### Resposta `200`
+
+CSV em **UTF-8 com BOM** + separador `;`:
+
+```csv
+timestamp;value
+1715817600;14
+1715904000;22
+1715990400;31
+```
+
+Abre direto no Excel BR sem quebrar acentuação.
+
+---
 
 ## Códigos de resposta
 

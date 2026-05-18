@@ -4,34 +4,126 @@ description: "Sequências de ações executadas manualmente pelo agente."
 ---
 
 Macros são **sequências de ações pré-configuradas** que o agente executa com um clique
-durante uma conversa. Diferente de **regras de automação** (que disparam sozinhas a
+durante uma conversa. Diferente de regras de automação (que disparam sozinhas a
 partir de eventos), macros são acionadas manualmente.
 
-Exemplo: macro "Escalar para N2" que executa em sequência:
-1. Adiciona label `n2`
-2. Atribui equipe Suporte N2
-3. Envia mensagem "Sua solicitação foi escalada pro time técnico"
-4. Muda status pra Pending
+**Base:** `https://chat.lfautomatiza.com/api/v1/accounts/{account_id}`
+
+---
 
 ## Listar macros
 
 ```http
-GET /api/v1/accounts/{account_id}/macros
+GET /macros
 ```
 
-```bash
+### Requisição
+
+```bash cURL
 curl https://chat.lfautomatiza.com/api/v1/accounts/1/macros \
   -H "api_access_token: $TOKEN"
 ```
 
-## Criar macro
-
-```http
-POST /api/v1/accounts/{account_id}/macros
-```
+### Resposta `200`
 
 ```json
 {
+  "payload": [
+    {
+      "id": 31,
+      "name": "Escalar para N2",
+      "visibility": "global",
+      "actions": [
+        { "action_name": "add_label", "action_params": ["n2"] },
+        { "action_name": "assign_team", "action_params": [3] },
+        { "action_name": "send_message", "action_params": ["Sua solicitação foi escalada pro time técnico."] },
+        { "action_name": "change_status", "action_params": ["pending"] }
+      ],
+      "executions_count": 124,
+      "created_at": "2026-04-15T10:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+## Detalhe da macro
+
+```http
+GET /macros/{id}
+```
+
+<ParamField path="id" type="integer" required>ID da macro</ParamField>
+
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/macros/31 \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 31,
+  "name": "Escalar para N2",
+  "visibility": "global",
+  "actions": [
+    { "action_name": "add_label", "action_params": ["n2"] },
+    { "action_name": "assign_team", "action_params": [3] },
+    { "action_name": "send_message", "action_params": ["Sua solicitação foi escalada pro time técnico."] },
+    { "action_name": "change_status", "action_params": ["pending"] }
+  ],
+  "created_by_id": 7,
+  "executions_count": 124
+}
+```
+
+---
+
+## Criar macro
+
+```http
+POST /macros
+```
+
+<ParamField body="name" type="string" required>Nome exibido pros agentes</ParamField>
+<ParamField body="visibility" type="enum" required>`global` (todos da conta) ou `personal` (só quem criou)</ParamField>
+<ParamField body="actions" type="array" required>Sequência de ações</ParamField>
+
+### Ações disponíveis (`action_name`)
+
+Mesmo conjunto das [regras de automação](/api-reference/automation-rules):
+
+`assign_agent`, `assign_team`, `assign_best_agent`, `add_label`, `remove_label`,
+`send_message`, `change_status`, `change_priority`, `send_attachment`,
+`mute_conversation`, `snooze_conversation`, `add_private_note`.
+
+### Requisição
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/macros \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Escalar para N2",
+    "visibility": "global",
+    "actions": [
+      { "action_name": "add_label", "action_params": ["n2"] },
+      { "action_name": "assign_team", "action_params": [3] },
+      { "action_name": "send_message", "action_params": ["Sua solicitação foi escalada pro time técnico. Em breve um especialista responde."] },
+      { "action_name": "change_status", "action_params": ["pending"] }
+    ]
+  }'
+```
+
+### Resposta `201`
+
+```json
+{
+  "id": 32,
   "name": "Escalar para N2",
   "visibility": "global",
   "actions": [
@@ -39,51 +131,114 @@ POST /api/v1/accounts/{account_id}/macros
     { "action_name": "assign_team", "action_params": [3] },
     { "action_name": "send_message", "action_params": ["Sua solicitação foi escalada pro time técnico. Em breve um especialista responde."] },
     { "action_name": "change_status", "action_params": ["pending"] }
-  ]
+  ],
+  "created_at": "2026-05-18T23:50:00Z"
 }
 ```
 
-| Campo | Tipo | Descrição |
-| --- | --- | --- |
-| `name` | string | Nome exibido pros agentes |
-| `visibility` | enum | `global` (todos da conta) ou `personal` (só quem criou) |
-| `actions` | array | Sequência de ações (mesma estrutura das automation_rules) |
+---
 
-### Ações disponíveis
-
-Mesmo conjunto das [regras de automação](/api-reference/automation-rules):
-
-`assign_agent`, `assign_team`, `assign_best_agent`, `add_label`, `remove_label`,
-`send_message`, `change_status`, `change_priority`, `send_attachment`, `mute_conversation`,
-`snooze_conversation`, `add_private_note`.
-
-## Detalhe / atualizar / excluir
+## Atualizar macro
 
 ```http
-GET    /api/v1/accounts/{account_id}/macros/{id}
-PATCH  /api/v1/accounts/{account_id}/macros/{id}
-DELETE /api/v1/accounts/{account_id}/macros/{id}
+PATCH /macros/{id}
+PUT /macros/{id}
 ```
 
-## Executar macro numa conversa
+<ParamField path="id" type="integer" required>ID da macro</ParamField>
 
-```http
-POST /api/v1/accounts/{account_id}/macros/{id}/execute
-```
+### Requisição
 
-```bash
-curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/macros/12/execute \
+```bash cURL
+curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/macros/31 \
   -H "api_access_token: $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{ "conversation_ids": [1287, 1288, 1289] }'
+  -d '{
+    "actions": [
+      { "action_name": "add_label", "action_params": ["n2", "urgente"] },
+      { "action_name": "assign_team", "action_params": [3] },
+      { "action_name": "send_message", "action_params": ["Sua solicitação foi escalada pro time técnico."] },
+      { "action_name": "change_priority", "action_params": ["high"] },
+      { "action_name": "change_status", "action_params": ["pending"] }
+    ]
+  }'
 ```
 
-| Campo | Descrição |
-| --- | --- |
-| `conversation_ids` | Array de conversas onde executar a macro (1 ou múltiplas) |
+### Resposta `200`
+
+```json
+{
+  "id": 31,
+  "actions": [
+    { "action_name": "add_label", "action_params": ["n2", "urgente"] },
+    { "action_name": "assign_team", "action_params": [3] },
+    { "action_name": "send_message", "action_params": ["Sua solicitação foi escalada pro time técnico."] },
+    { "action_name": "change_priority", "action_params": ["high"] },
+    { "action_name": "change_status", "action_params": ["pending"] }
+  ],
+  "updated_at": "2026-05-19T00:00:00Z"
+}
+```
+
+---
+
+## Excluir macro
+
+```http
+DELETE /macros/{id}
+```
+
+<ParamField path="id" type="integer" required>ID da macro</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/macros/32 \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `204`
+
+Sem corpo.
+
+---
+
+## Executar macro em conversas
+
+```http
+POST /macros/{id}/execute
+```
+
+<ParamField path="id" type="integer" required>ID da macro</ParamField>
+<ParamField body="conversation_ids" type="array" required>Conversas onde executar (1 ou múltiplas)</ParamField>
 
 Executar em múltiplas conversas é forma rápida de aplicar mesma ação em lote
 (ex: "marcar todas essas como resolvidas e enviar pesquisa CSAT").
+
+### Requisição
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/macros/31/execute \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "conversation_ids": [1287, 1288, 1289]
+  }'
+```
+
+### Resposta `200`
+
+```json
+{
+  "macro_id": 31,
+  "executed_on": [1287, 1288, 1289],
+  "success_count": 3,
+  "failed_count": 0,
+  "errors": []
+}
+```
+
+---
 
 ## Macros pessoais vs globais
 
@@ -92,11 +247,14 @@ Executar em múltiplas conversas é forma rápida de aplicar mesma ação em lot
 | `personal` | Apenas o criador | Apenas o criador |
 | `global` | Todos os agentes da conta | Apenas administradores |
 
+---
+
 ## Códigos de resposta
 
 | Código | Quando acontece |
 | --- | --- |
-| `200 OK` | Listagem / leitura / atualização / execução |
+| `200 OK` | Listagem / atualização / execução |
 | `201 Created` | Macro criada |
 | `204 No Content` | Excluída |
 | `403 Forbidden` | Macro global sem ser admin / macro personal de outro agente |
+| `422 Unprocessable Entity` | Ação inválida |

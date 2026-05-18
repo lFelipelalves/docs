@@ -3,29 +3,128 @@ title: "Campanhas"
 description: "Disparos automáticos (ongoing) e em massa (one-off) via API."
 ---
 
-Campanhas permitem disparar mensagens em massa pra grupos de contatos. Existem dois tipos:
+Campanhas permitem disparar mensagens em massa pra grupos de contatos:
 
 - **Ongoing** — dispara automaticamente quando um visitante atinge regras configuradas (ex: passou X tempo no site)
 - **One-off** — disparo manual pra audiência definida na hora
 
+**Base:** `https://chat.lfautomatiza.com/api/v1/accounts/{account_id}`
+
+---
+
 ## Listar campanhas
 
 ```http
-GET /api/v1/accounts/{account_id}/campaigns
+GET /campaigns
 ```
 
-```bash
+### Requisição
+
+```bash cURL
 curl https://chat.lfautomatiza.com/api/v1/accounts/1/campaigns \
   -H "api_access_token: $TOKEN"
 ```
 
+### Resposta `200`
+
+```json
+[
+  {
+    "id": 12,
+    "title": "Saudação na página de preços",
+    "campaign_type": "ongoing",
+    "campaign_status": "active",
+    "inbox_id": 2,
+    "sender_id": 7,
+    "message": "Oi! Está com dúvida sobre os planos? Posso ajudar.",
+    "trigger_only_during_business_hours": true,
+    "trigger_rules": {
+      "url": "https://lfautomatiza.com/precos",
+      "time_on_page": 30
+    },
+    "created_at": "2026-04-12T10:00:00Z"
+  },
+  {
+    "id": 13,
+    "title": "Promoção Mai/2026",
+    "campaign_type": "one_off",
+    "campaign_status": "completed",
+    "inbox_id": 1,
+    "audience": [{ "type": "Label", "id": 2 }],
+    "scheduled_at": "2026-05-15T10:00:00Z",
+    "stats": {
+      "total_audience": 1247,
+      "sent": 1219,
+      "failed": 28
+    }
+  }
+]
+```
+
+---
+
+## Detalhe da campanha
+
+```http
+GET /campaigns/{id}
+```
+
+<ParamField path="id" type="integer" required>ID da campanha</ParamField>
+
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/campaigns/12 \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 12,
+  "title": "Saudação na página de preços",
+  "campaign_type": "ongoing",
+  "campaign_status": "active",
+  "inbox_id": 2,
+  "sender_id": 7,
+  "message": "Oi! Está com dúvida sobre os planos? Posso ajudar.",
+  "trigger_only_during_business_hours": true,
+  "trigger_rules": {
+    "url": "https://lfautomatiza.com/precos",
+    "time_on_page": 30
+  },
+  "stats": {
+    "triggered_count": 432,
+    "engaged_count": 87
+  }
+}
+```
+
+---
+
 ## Criar campanha **ongoing** (widget)
 
 ```http
-POST /api/v1/accounts/{account_id}/campaigns
+POST /campaigns
 ```
 
-```bash
+<ParamField body="title" type="string" required>Nome interno da campanha</ParamField>
+<ParamField body="message" type="string" required>Texto enviado</ParamField>
+<ParamField body="inbox_id" type="integer" required>ID da inbox Webchat</ParamField>
+<ParamField body="sender_id" type="integer" required>Agente que aparece como remetente</ParamField>
+<ParamField body="campaign_type" type="enum" default="ongoing">`ongoing` ou `one_off`</ParamField>
+<ParamField body="trigger_only_during_business_hours" type="boolean">Só dispara em horário comercial</ParamField>
+<ParamField body="trigger_rules" type="object">Regras de disparo (ver abaixo)</ParamField>
+
+#### `trigger_rules` (ongoing)
+
+<ParamField body="trigger_rules.url" type="string">URL exata onde dispara</ParamField>
+<ParamField body="trigger_rules.time_on_page" type="integer">Segundos no site antes de disparar</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/campaigns \
   -H "api_access_token: $TOKEN" \
   -H "Content-Type: application/json" \
@@ -34,6 +133,7 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/campaigns \
     "message": "Oi! Está com dúvida sobre os planos? Posso ajudar.",
     "inbox_id": 2,
     "sender_id": 7,
+    "campaign_type": "ongoing",
     "trigger_only_during_business_hours": true,
     "trigger_rules": {
       "url": "https://lfautomatiza.com/precos",
@@ -42,19 +142,56 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/campaigns \
   }'
 ```
 
-| Campo | Tipo | Descrição |
-| --- | --- | --- |
-| `title` | string | Nome interno da campanha |
-| `message` | string | Texto enviado |
-| `inbox_id` | integer | Webchat inbox |
-| `sender_id` | integer | Agente que aparece como remetente |
-| `trigger_only_during_business_hours` | boolean | Só dispara em horário comercial |
-| `trigger_rules.url` | string | URL exata onde dispara |
-| `trigger_rules.time_on_page` | integer | Segundos no site antes de disparar |
+### Resposta `201`
+
+```json
+{
+  "id": 14,
+  "title": "Saudação na página de preços",
+  "campaign_type": "ongoing",
+  "campaign_status": "draft",
+  "inbox_id": 2,
+  "sender_id": 7,
+  "created_at": "2026-05-18T22:30:00Z"
+}
+```
+
+---
 
 ## Criar campanha **one-off** (envio em massa)
 
-```bash
+```http
+POST /campaigns
+```
+
+<ParamField body="title" type="string" required>Nome interno</ParamField>
+<ParamField body="message" type="string" required>Texto com variáveis (`{{contact.name}}`...)</ParamField>
+<ParamField body="inbox_id" type="integer" required>Inbox de envio</ParamField>
+<ParamField body="campaign_type" type="enum" required>`one_off`</ParamField>
+<ParamField body="audience" type="array" required>Lista de objetos `{ type, id }`</ParamField>
+<ParamField body="scheduled_at" type="datetime">ISO 8601 — quando disparar (omita pra disparar na hora)</ParamField>
+
+#### Variáveis disponíveis em `message`
+
+| Variável | Valor |
+| --- | --- |
+| `{{contact.name}}` | Nome do contato |
+| `{{contact.email}}` | E-mail |
+| `{{contact.phone_number}}` | Telefone |
+| `{{contact.identifier}}` | ID externo |
+| `{{contact.custom_attributes.X}}` | Valor de atributo personalizado |
+
+#### Spintax (variações automáticas)
+
+```
+{Olá|Oi|E aí} {{contact.name}}! Temos {uma novidade|uma oferta} pra você.
+```
+
+A plataforma escolhe aleatoriamente uma variação em cada envio.
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/campaigns \
   -H "api_access_token: $TOKEN" \
   -H "Content-Type: application/json" \
@@ -71,86 +208,158 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/campaigns \
   }'
 ```
 
-| Campo | Descrição |
-| --- | --- |
-| `campaign_type` | `one_off` ou `ongoing` |
-| `audience` | Array de Label IDs (combina via OR) |
-| `scheduled_at` | ISO 8601 — quando disparar (ou omita pra disparar na hora) |
-| `message` | Suporta `{{contact.name}}`, `{{contact.email}}`, `{{contact.custom_attributes.xxx}}` |
+### Resposta `201`
 
-## Variáveis disponíveis na mensagem
-
-| Variável | Valor |
-| --- | --- |
-| `{{contact.name}}` | Nome do contato |
-| `{{contact.email}}` | E-mail |
-| `{{contact.phone_number}}` | Telefone |
-| `{{contact.identifier}}` | ID externo |
-| `{{contact.custom_attributes.X}}` | Valor de um atributo personalizado |
-
-## Spintax (variações de texto)
-
-Pra reduzir padrão e diminuir filtro anti-spam:
-
-```
-{Olá|Oi|E aí} {{contact.name}}! Temos {uma novidade|um aviso|uma oferta} pra você.
+```json
+{
+  "id": 15,
+  "title": "Promoção Mai/2026",
+  "campaign_type": "one_off",
+  "campaign_status": "scheduled",
+  "scheduled_at": "2026-05-20T10:00:00-03:00",
+  "audience_total": 1247
+}
 ```
 
-A plataforma escolhe aleatoriamente uma das alternativas em cada envio.
-
-## Detalhe da campanha
-
-```http
-GET /api/v1/accounts/{account_id}/campaigns/{id}
-```
-
-Retorna status atual, audiência total, enviadas com sucesso, falhadas, e ETA quando aplicável.
+---
 
 ## Atualizar campanha
 
 ```http
-PATCH /api/v1/accounts/{account_id}/campaigns/{id}
+PATCH /campaigns/{id}
 ```
 
-Só funciona enquanto a campanha está em `draft` ou `paused`. Campanhas em execução
-não podem ser editadas.
+<ParamField path="id" type="integer" required>ID da campanha</ParamField>
 
-## Pausar / retomar campanha
+Só funciona enquanto a campanha está em `draft`, `paused` ou `scheduled`. Campanhas
+em execução não podem ser editadas.
+
+### Requisição
+
+```bash cURL
+curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/campaigns/15 \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Oi {{contact.name}}, novidade exclusiva pra você!",
+    "scheduled_at": "2026-05-21T10:00:00-03:00"
+  }'
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 15,
+  "message": "Oi {{contact.name}}, novidade exclusiva pra você!",
+  "scheduled_at": "2026-05-21T10:00:00-03:00",
+  "updated_at": "2026-05-18T22:45:00Z"
+}
+```
+
+---
+
+## Pausar campanha
 
 ```http
-POST /api/v1/accounts/{account_id}/campaigns/{id}/pause
-POST /api/v1/accounts/{account_id}/campaigns/{id}/resume
+POST /campaigns/{id}/pause
 ```
 
-Útil pra parar uma campanha já em curso se você detectar algo errado (alta taxa de
+<ParamField path="id" type="integer" required>ID da campanha</ParamField>
+
+Útil pra parar uma campanha já em execução se detectar problema (alta taxa de
 falha, bloqueio, etc.).
+
+### Requisição
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/campaigns/15/pause \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 15,
+  "campaign_status": "paused",
+  "paused_at": "2026-05-20T11:00:00Z",
+  "stats_at_pause": { "sent": 423, "failed": 12, "remaining": 812 }
+}
+```
+
+---
+
+## Retomar campanha
+
+```http
+POST /campaigns/{id}/resume
+```
+
+<ParamField path="id" type="integer" required>ID da campanha</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/campaigns/15/resume \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 15,
+  "campaign_status": "running",
+  "resumed_at": "2026-05-20T11:30:00Z"
+}
+```
+
+---
 
 ## Excluir campanha
 
 ```http
-DELETE /api/v1/accounts/{account_id}/campaigns/{id}
+DELETE /campaigns/{id}
 ```
+
+<ParamField path="id" type="integer" required>ID da campanha</ParamField>
 
 Só permitido em `draft`. Campanhas executadas viram histórico (preservadas).
 
-## Status da campanha
+### Requisição
+
+```bash cURL
+curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/campaigns/15 \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `204`
+
+Sem corpo.
+
+---
+
+## Status da campanha (`campaign_status`)
 
 | Status | Significado |
 | --- | --- |
-| `draft` | Criada mas não disparada ainda |
-| `enabled` | Ativa (ongoing) — disparando conforme triggers |
-| `scheduled` | One-off agendada pra `scheduled_at` |
+| `draft` | Criada mas não disparada |
+| `active` | Ongoing — disparando conforme triggers |
+| `scheduled` | One-off aguardando `scheduled_at` |
 | `running` | One-off em execução |
 | `completed` | One-off finalizada |
 | `paused` | Pausada manualmente |
-| `failed` | Falhou globalmente (erro de inbox, sem audiência, etc.) |
+| `failed` | Falhou globalmente |
+
+---
 
 ## Códigos de resposta
 
 | Código | Quando acontece |
 | --- | --- |
-| `200 OK` | Listagem / leitura / atualização |
+| `200 OK` | Listagem / leitura / atualização / pause / resume |
 | `201 Created` | Campanha criada |
-| `204 No Content` | Pausada / retomada / excluída |
-| `403 Forbidden` | Sem permissão (apenas admin) |
-| `422 Unprocessable Entity` | Inbox inválida ou audiência vazia |
+| `204 No Content` | Excluída |
+| `403 Forbidden` | Apenas administrador |
+| `422 Unprocessable Entity` | Inbox inválida, audiência vazia, template não aprovado |

@@ -7,57 +7,85 @@ Respostas rápidas (canned responses) são templates de texto que o agente acess
 digitando `/` na caixa de mensagem. Diferente de macros, **não executam ações** —
 apenas inserem texto.
 
-## Listar
+**Base:** `https://chat.lfautomatiza.com/api/v1/accounts/{account_id}`
+
+---
+
+## Listar respostas
 
 ```http
-GET /api/v1/accounts/{account_id}/canned_responses
+GET /canned_responses
 ```
 
-```bash
+### Requisição
+
+```bash cURL
 curl https://chat.lfautomatiza.com/api/v1/accounts/1/canned_responses \
   -H "api_access_token: $TOKEN"
 ```
 
-### Resposta
+### Resposta `200`
 
 ```json
 [
   {
-    "id": 1,
+    "id": 41,
     "short_code": "saudacao",
-    "content": "Olá! Tudo bem? Como posso te ajudar hoje?"
+    "content": "Olá! Tudo bem? Como posso te ajudar hoje?",
+    "created_at": "2026-04-12T10:00:00Z"
   },
   {
-    "id": 2,
+    "id": 42,
     "short_code": "horario",
-    "content": "Nosso horário de atendimento é seg-sex, 9h-18h."
+    "content": "Nosso horário de atendimento é seg-sex, 9h-18h.",
+    "created_at": "2026-04-12T10:05:00Z"
   }
 ]
 ```
 
-## Criar
+---
+
+## Detalhe
 
 ```http
-POST /api/v1/accounts/{account_id}/canned_responses
+GET /canned_responses/{id}
 ```
 
-| Campo | Tipo | Obrigatório | Descrição |
-| --- | --- | --- | --- |
-| `short_code` | string | ✅ | Atalho (`/saudacao`, `/boleto`). Sem espaço. |
-| `content` | string | ✅ | Texto inserido quando o atalho é usado |
+<ParamField path="id" type="integer" required>ID da resposta</ParamField>
 
-```bash
-curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/canned_responses \
-  -H "api_access_token: $TOKEN" \
-  -d '{
-    "short_code": "encerramento",
-    "content": "Foi um prazer te atender! Se precisar de algo mais, é só chamar."
-  }'
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/canned_responses/41 \
+  -H "api_access_token: $TOKEN"
 ```
 
-## Variáveis dinâmicas
+### Resposta `200`
 
-O `content` aceita placeholders que são substituídos no momento da inserção:
+```json
+{
+  "id": 41,
+  "short_code": "saudacao",
+  "content": "Olá! Tudo bem? Como posso te ajudar hoje?",
+  "created_by_id": 7,
+  "created_at": "2026-04-12T10:00:00Z"
+}
+```
+
+---
+
+## Criar resposta
+
+```http
+POST /canned_responses
+```
+
+<ParamField body="short_code" type="string" required>Atalho (`/saudacao`, `/boleto`). Sem espaço.</ParamField>
+<ParamField body="content" type="string" required>Texto inserido quando o atalho é usado</ParamField>
+
+### Variáveis dinâmicas no `content`
+
+O `content` aceita placeholders substituídos na inserção:
 
 | Variável | Valor |
 | --- | --- |
@@ -68,25 +96,90 @@ O `content` aceita placeholders que são substituídos no momento da inserção:
 | `{{conversation.display_id}}` | Display ID (ticket #) |
 | `{{agent.name}}` | Nome do agente que está enviando |
 
-Exemplo de canned com variáveis:
+### Requisição
 
-```
-Olá {{contact.name}}! Você está sendo atendido por {{agent.name}}.
-Seu ticket é #{{conversation.display_id}}.
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/canned_responses \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "short_code": "encerramento",
+    "content": "Foi um prazer te atender, {{contact.name}}! Se precisar de algo mais, é só chamar. — {{agent.name}}"
+  }'
 ```
 
-## Atualizar / excluir
+### Resposta `201`
+
+```json
+{
+  "id": 43,
+  "short_code": "encerramento",
+  "content": "Foi um prazer te atender, {{contact.name}}! Se precisar de algo mais, é só chamar. — {{agent.name}}",
+  "created_at": "2026-05-19T00:15:00Z"
+}
+```
+
+---
+
+## Atualizar resposta
 
 ```http
-PATCH  /api/v1/accounts/{account_id}/canned_responses/{id}
-DELETE /api/v1/accounts/{account_id}/canned_responses/{id}
+PATCH /canned_responses/{id}
+PUT /canned_responses/{id}
 ```
+
+<ParamField path="id" type="integer" required>ID da resposta</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/canned_responses/41 \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content": "Olá {{contact.name}}, tudo bem? Como posso te ajudar?"
+  }'
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 41,
+  "short_code": "saudacao",
+  "content": "Olá {{contact.name}}, tudo bem? Como posso te ajudar?",
+  "updated_at": "2026-05-19T00:30:00Z"
+}
+```
+
+---
+
+## Excluir resposta
+
+```http
+DELETE /canned_responses/{id}
+```
+
+<ParamField path="id" type="integer" required>ID da resposta</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/canned_responses/43 \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `204`
+
+Sem corpo.
+
+---
 
 ## Códigos de resposta
 
 | Código | Quando acontece |
 | --- | --- |
 | `200 OK` | Listagem / leitura / atualização |
-| `201 Created` | Resposta rápida criada |
+| `201 Created` | Resposta criada |
 | `204 No Content` | Excluída |
 | `422 Unprocessable Entity` | `short_code` duplicado na conta |

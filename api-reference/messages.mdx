@@ -3,30 +3,31 @@ title: "Mensagens"
 description: "Enviar, listar, editar e excluir mensagens dentro de uma conversa."
 ---
 
-Mensagens vivem **dentro de uma conversa**. Todo endpoint é escopado tanto pela conta
-quanto pela conversa:
+Mensagens vivem **dentro de uma conversa**. Todo endpoint é escopado pela conta
+e pela conversa.
 
-```
-/api/v1/accounts/{account_id}/conversations/{conversation_id}/messages
-```
+**Base:** `https://chat.lfautomatiza.com/api/v1/accounts/{account_id}/conversations/{conversation_id}`
+
+---
 
 ## Listar mensagens
 
 ```http
-GET /api/v1/accounts/{account_id}/conversations/{conversation_id}/messages
+GET /messages
 ```
 
-| Parâmetro | Descrição |
-| --- | --- |
-| `before` | ID de mensagem — retorna mensagens **anteriores** a essa (paginação) |
-| `after` | ID de mensagem — retorna mensagens posteriores |
+<ParamField path="conversation_id" type="integer" required>ID da conversa</ParamField>
+<ParamField query="before" type="integer">ID de mensagem — retorna mensagens **anteriores** a essa</ParamField>
+<ParamField query="after" type="integer">ID de mensagem — retorna mensagens **posteriores** a essa</ParamField>
 
-```bash
+### Requisição
+
+```bash cURL
 curl "https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/messages" \
   -H "api_access_token: $TOKEN"
 ```
 
-### Resposta
+### Resposta `200`
 
 ```json
 {
@@ -55,27 +56,39 @@ curl "https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/message
         "type": "contact"
       },
       "attachments": []
+    },
+    {
+      "id": 7822,
+      "content": "Olá Carlos! Posso te explicar o Scale agora — disponível?",
+      "message_type": "outgoing",
+      "content_type": "text",
+      "status": "sent",
+      "private": false,
+      "sender": { "id": 7, "name": "Sabrina", "type": "user" },
+      "created_at": 1715972400
     }
   ]
 }
 ```
 
-## Enviar mensagem (texto)
+---
+
+## Enviar mensagem de texto
 
 ```http
-POST /api/v1/accounts/{account_id}/conversations/{conversation_id}/messages
+POST /messages
 ```
 
-| Campo | Tipo | Descrição |
-| --- | --- | --- |
-| `content` | string | Texto da mensagem |
-| `message_type` | enum | `outgoing` (padrão) ou `incoming` |
-| `private` | boolean | `true` = nota interna (invisível ao cliente) |
-| `content_type` | enum | `text`, `input_select`, `cards`, `form` |
-| `content_attributes` | object | Metadata adicional (varia por `content_type`) |
-| `template_params` | object | Parâmetros pra templates aprovados |
+<ParamField path="conversation_id" type="integer" required>ID da conversa</ParamField>
+<ParamField body="content" type="string" required>Texto da mensagem</ParamField>
+<ParamField body="message_type" type="enum" default="outgoing">`outgoing` ou `incoming`</ParamField>
+<ParamField body="private" type="boolean" default="false">`true` = nota interna (invisível ao cliente)</ParamField>
+<ParamField body="content_type" type="enum">`text` (padrão), `input_select`, `cards`, `form`</ParamField>
+<ParamField body="content_attributes" type="object">Metadata adicional (varia por `content_type`)</ParamField>
 
-```bash
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/messages \
   -H "api_access_token: $TOKEN" \
   -H "Content-Type: application/json" \
@@ -86,11 +99,39 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/
   }'
 ```
 
+### Resposta `200`
+
+```json
+{
+  "id": 7823,
+  "content": "Sua proposta foi aprovada! Confira o PDF anexo.",
+  "message_type": "outgoing",
+  "content_type": "text",
+  "private": false,
+  "status": "sent",
+  "conversation_id": 1287,
+  "created_at": 1715972500,
+  "sender": { "id": 7, "name": "Sabrina" }
+}
+```
+
+---
+
 ## Enviar mensagem com anexo
 
-Use multipart quando precisar enviar arquivo:
+```http
+POST /messages
+```
 
-```bash
+Use **multipart/form-data** quando precisar enviar arquivo.
+
+<ParamField body="content" type="string">Texto da mensagem (opcional se só anexo)</ParamField>
+<ParamField body="message_type" type="enum">`outgoing` ou `incoming`</ParamField>
+<ParamField body="attachments[]" type="file" required>Um ou mais arquivos</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/messages \
   -H "api_access_token: $TOKEN" \
   -F "content=Segue o contrato" \
@@ -100,11 +141,44 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/
 
 Múltiplos anexos: repita o campo `attachments[]`.
 
-## Enviar template (WhatsApp)
+### Resposta `200`
 
-Pra disparos que estão fora da janela de 24h, use um template aprovado:
+```json
+{
+  "id": 7824,
+  "content": "Segue o contrato",
+  "attachments": [
+    {
+      "id": 451,
+      "file_url": "https://chat.lfautomatiza.com/rails/active_storage/blobs/...",
+      "file_size": 245760,
+      "file_type": "document",
+      "thumb_url": null
+    }
+  ]
+}
+```
 
-```bash
+---
+
+## Enviar template aprovado
+
+```http
+POST /messages
+```
+
+Pra disparos fora da janela de 24h no WhatsApp, é necessário usar um template
+aprovado pela Meta.
+
+<ParamField body="template_params" type="object" required>Configuração do template</ParamField>
+<ParamField body="template_params.name" type="string" required>Nome do template na sua conta business</ParamField>
+<ParamField body="template_params.language" type="string" required>Código de idioma (`pt_BR`, `en_US`...)</ParamField>
+<ParamField body="template_params.category" type="enum" required>`MARKETING`, `UTILITY`, `AUTHENTICATION`</ParamField>
+<ParamField body="template_params.processed_params" type="object">Substitui `{{n}}` do template (chave `1`, `2`, etc.)</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/messages \
   -H "api_access_token: $TOKEN" \
   -H "Content-Type: application/json" \
@@ -122,31 +196,69 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/
   }'
 ```
 
-| Campo | Descrição |
-| --- | --- |
-| `name` | Nome do template aprovado na sua conta business |
-| `language` | Código de idioma (`pt_BR`, `en_US`, etc.) |
-| `category` | `MARKETING`, `UTILITY`, `AUTHENTICATION` |
-| `processed_params.{n}` | Substitui o placeholder `{{n}}` do template |
+### Resposta `200`
 
-## Nota privada
+```json
+{
+  "id": 7825,
+  "message_type": "template",
+  "content_type": "text",
+  "content": "Olá Carlos, obrigado pelo interesse no plano Scale!",
+  "status": "sent",
+  "created_at": 1715972600
+}
+```
 
-Notas privadas ficam visíveis apenas para os atendentes — o cliente nunca vê:
+---
 
-```bash
+## Enviar nota privada
+
+```http
+POST /messages
+```
+
+Notas privadas ficam visíveis apenas pros agentes — o cliente nunca vê.
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/messages \
   -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
   -d '{
     "content": "Cliente pediu desconto. Aprovei até 10% — não passe disso.",
     "private": true
   }'
 ```
 
-## Mensagem interativa (cards)
+### Resposta `200`
 
-Disponível em canais que suportam (Webchat, Telegram):
+```json
+{
+  "id": 7826,
+  "content": "Cliente pediu desconto. Aprovei até 10% — não passe disso.",
+  "private": true,
+  "message_type": "outgoing",
+  "created_at": 1715972700
+}
+```
 
-```bash
+---
+
+## Enviar mensagem interativa (select)
+
+```http
+POST /messages
+```
+
+Disponível em canais que suportam (Webchat, Telegram, e alguns templates WhatsApp).
+
+<ParamField body="content_type" type="enum" required>`input_select`</ParamField>
+<ParamField body="content_attributes.items" type="array" required>Array de `{ title, value }`</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/messages \
   -H "api_access_token: $TOKEN" \
   -H "Content-Type: application/json" \
@@ -163,50 +275,87 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/
   }'
 ```
 
+### Resposta `200`
+
+```json
+{
+  "id": 7827,
+  "content": "Escolha um plano:",
+  "content_type": "input_select",
+  "content_attributes": {
+    "items": [
+      { "title": "Growth - R$ 347", "value": "growth" },
+      { "title": "Scale - R$ 597", "value": "scale" },
+      { "title": "Infinity - R$ 997", "value": "infinity" }
+    ]
+  }
+}
+```
+
+---
+
 ## Excluir mensagem
 
 ```http
-DELETE /api/v1/accounts/{account_id}/conversations/{conversation_id}/messages/{id}
+DELETE /messages/{id}
 ```
 
-```bash
+<ParamField path="conversation_id" type="integer" required>ID da conversa</ParamField>
+<ParamField path="id" type="integer" required>ID da mensagem</ParamField>
+
+<Note>
+  A mensagem não é apagada de fato — fica como "Mensagem excluída" com um
+  placeholder configurável por inbox. O cliente vê esse placeholder.
+</Note>
+
+### Requisição
+
+```bash cURL
 curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/conversations/1287/messages/7821 \
   -H "api_access_token: $TOKEN"
 ```
 
-<Note>
-  A mensagem não é apagada de fato — fica como "Mensagem excluída"
-  com um placeholder configurável por inbox. O cliente vê esse placeholder.
-</Note>
+### Resposta `200`
 
-## Tipos de mensagem
+```json
+{
+  "id": 7821,
+  "content": "Esta mensagem foi excluída",
+  "content_type": "text",
+  "deleted_at": 1715973000
+}
+```
 
-| `message_type` | Quem envia | Visibilidade |
+---
+
+## Tipos de mensagem (`message_type`)
+
+| Tipo | Quem envia | Visibilidade |
 | --- | --- | --- |
 | `incoming` | Cliente para a plataforma | Todos veem |
 | `outgoing` | Plataforma para o cliente | Todos veem |
 | `activity` | Sistema (atribuição, status mudou) | Atendentes veem |
-| `template` | Plataforma para o cliente, via template | Todos veem |
+| `template` | Plataforma para cliente via template | Todos veem |
 
-## Status de entrega
-
-Campo `status` da mensagem:
+## Status de entrega (`status`)
 
 | Status | Significado |
 | --- | --- |
 | `sent` | Saiu da plataforma |
-| `delivered` | Entregue ao dispositivo do destinatário |
+| `delivered` | Entregue no dispositivo do destinatário |
 | `read` | Cliente leu (se canal suporta) |
 | `failed` | Falhou — confira `external_error` |
 | `received` | Mensagem recebida (incoming) |
+
+---
 
 ## Códigos de resposta
 
 | Código | Quando acontece |
 | --- | --- |
-| `200 OK` | Lista retornada |
-| `201 Created` | Mensagem enviada |
-| `400 Bad Request` | Payload inválido (ex: anexo grande demais) |
+| `200 OK` | Mensagem enviada / lista retornada |
+| `400 Bad Request` | Payload inválido (anexo grande demais, template ausente) |
 | `403 Forbidden` | Sem permissão na conversa |
 | `404 Not Found` | Conversa não existe |
-| `422 Unprocessable Entity` | Fora de janela / template inválido |
+| `413 Payload Too Large` | Anexo acima do limite (32MB pra vídeo, 100MB pra documento) |
+| `422 Unprocessable Entity` | Fora de janela / template não aprovado |

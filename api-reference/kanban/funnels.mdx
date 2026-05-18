@@ -6,27 +6,104 @@ description: "CRUD de funis, métricas por etapa e reordenação."
 Funis são os pipelines do seu Kanban. Você pode ter quantos quiser (Vendas SMB,
 Vendas Enterprise, Renovação, Onboarding...), cada um com etapas próprias.
 
-## Endpoints
+**Base:** `https://chat.lfautomatiza.com/api/v1/accounts/{account_id}`
 
-| Método | Endpoint | Descrição |
-| --- | --- | --- |
-| `GET` | `/funnels` | Lista funis da conta |
-| `GET` | `/funnels/:id` | Detalhe de um funil |
-| `POST` | `/funnels` | Cria funil |
-| `PATCH` `PUT` | `/funnels/:id` | Atualiza funil |
-| `DELETE` | `/funnels/:id` | Remove funil **e todos os itens dele** |
-| `GET` | `/funnels/:id/stage_stats` | Métricas agregadas por etapa |
-| `PATCH` | `/funnels/:id/reorder` | Reordena etapas |
-| `GET` | `/funnels/:funnel_id/kanban_items` | Lista itens deste funil |
+---
 
-<Warning>
-  `DELETE /funnels/:id` é **irreversível** e remove em cascata todos os cards,
-  notas, checklists e anexos vinculados. Considere arquivar via `active: false` em vez de deletar.
-</Warning>
+## Listar funis
+
+```http
+GET /funnels
+```
+
+<ParamField path="account_id" type="integer" required>ID da conta no LF Connect</ParamField>
+
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/funnels \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+[
+  {
+    "id": 10,
+    "name": "Vendas SMB",
+    "description": "Pipeline comercial pra pequenas e médias empresas",
+    "active": true,
+    "is_default": true,
+    "stages": {
+      "lead": { "id": "lead", "name": "Lead", "color": "#94a3b8", "position": 1 },
+      "qualified": { "id": "qualified", "name": "Qualificado", "color": "#3b82f6", "position": 2 },
+      "proposal": { "id": "proposal", "name": "Proposta", "color": "#22c55e", "position": 3 },
+      "won": { "id": "won", "name": "Ganho", "color": "#16a34a", "position": 4 },
+      "lost": { "id": "lost", "name": "Perdido", "color": "#dc2626", "position": 5 }
+    },
+    "items_count": 47,
+    "created_at": "2026-04-12T10:00:00Z",
+    "updated_at": "2026-05-18T14:00:00Z"
+  }
+]
+```
+
+---
+
+## Detalhe de um funil
+
+```http
+GET /funnels/{id}
+```
+
+<ParamField path="id" type="integer" required>ID do funil</ParamField>
+
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/funnels/10 \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 10,
+  "name": "Vendas SMB",
+  "description": "Pipeline comercial pra pequenas e médias empresas",
+  "active": true,
+  "is_default": true,
+  "stages": {
+    "lead": { "id": "lead", "name": "Lead", "color": "#94a3b8", "position": 1 },
+    "qualified": { "id": "qualified", "name": "Qualificado", "color": "#3b82f6", "position": 2 }
+  },
+  "settings": {},
+  "global_custom_attributes": []
+}
+```
+
+---
 
 ## Criar funil
 
-<CodeGroup>
+```http
+POST /funnels
+```
+
+### Corpo da requisição
+
+<ParamField body="funnel.name" type="string" required>Nome do funil</ParamField>
+<ParamField body="funnel.description" type="string">Texto livre descrevendo o pipeline</ParamField>
+<ParamField body="funnel.active" type="boolean" default="true">`false` arquiva sem deletar</ParamField>
+<ParamField body="funnel.is_default" type="boolean" default="false">Funil padrão ao abrir o Kanban</ParamField>
+<ParamField body="funnel.stages" type="object" required>Mapa de etapas (chave = `id` do stage)</ParamField>
+<ParamField body="funnel.settings" type="object">Configurações customizadas (opcional)</ParamField>
+<ParamField body="funnel.global_custom_attributes" type="array">Atributos válidos pra todos os itens deste funil</ParamField>
+
+### Requisição
+
 ```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/funnels \
   -H "api_access_token: $TOKEN" \
@@ -75,47 +152,138 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/funnels \
     }
   }'
 ```
-</CodeGroup>
 
-### Payload completo
+### Resposta `201`
 
 ```json
 {
-  "funnel": {
-    "name": "Vendas SMB",
-    "description": "Pipeline comercial",
-    "active": true,
-    "is_default": false,
-    "stages": {
-      "lead": {
-        "id": "lead",
-        "name": "Lead",
-        "color": "#94a3b8",
-        "position": 1,
-        "description": "Primeiro contato"
-      }
-    },
-    "settings": {},
-    "global_custom_attributes": []
-  }
+  "id": 11,
+  "name": "Vendas SMB",
+  "active": true,
+  "is_default": false,
+  "stages": {
+    "lead": { "id": "lead", "name": "Lead", "color": "#94a3b8", "position": 1, "description": "Primeiro contato" }
+  },
+  "created_at": "2026-05-18T15:00:00Z"
 }
 ```
 
-### Campos
+---
 
-| Campo | Tipo | Obrigatório | Descrição |
-| --- | --- | --- | --- |
-| `name` | string | ✅ | Nome do funil |
-| `description` | string | | Texto livre |
-| `active` | boolean | | `false` arquiva sem deletar |
-| `is_default` | boolean | | Funil padrão ao abrir Kanban |
-| `stages` | object | ✅ | Mapa de etapas (chave = `id` do stage) |
-| `settings` | object | | Configurações customizadas |
-| `global_custom_attributes` | array | | Atributos válidos pra todos os itens deste funil |
+## Atualizar funil
+
+```http
+PATCH /funnels/{id}
+PUT /funnels/{id}
+```
+
+<ParamField path="id" type="integer" required>ID do funil</ParamField>
+
+Todos os campos do corpo são opcionais. Você manda apenas o que quer atualizar.
+
+### Requisição
+
+```bash cURL
+curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/funnels/10 \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "funnel": {
+      "name": "Vendas SMB 2026",
+      "is_default": true
+    }
+  }'
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 10,
+  "name": "Vendas SMB 2026",
+  "is_default": true,
+  "updated_at": "2026-05-18T15:30:00Z"
+}
+```
+
+---
+
+## Remover funil
+
+```http
+DELETE /funnels/{id}
+```
+
+<ParamField path="id" type="integer" required>ID do funil</ParamField>
+
+<Warning>
+  `DELETE` é **irreversível** e remove em cascata todos os cards, notas,
+  checklists e anexos vinculados. Considere arquivar via `active: false` em vez de deletar.
+</Warning>
+
+### Requisição
+
+```bash cURL
+curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/funnels/10 \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `204`
+
+Sem corpo. Apenas o status HTTP `204 No Content`.
+
+---
+
+## Métricas agregadas por etapa
+
+```http
+GET /funnels/{id}/stage_stats
+```
+
+<ParamField path="id" type="integer" required>ID do funil</ParamField>
+<ParamField query="from" type="date">Início da janela (ISO 8601). Padrão: 30 dias atrás</ParamField>
+<ParamField query="to" type="date">Fim da janela (ISO 8601). Padrão: hoje</ParamField>
+
+### Requisição
+
+```bash cURL
+curl "https://chat.lfautomatiza.com/api/v1/accounts/1/funnels/10/stage_stats?from=2026-05-01&to=2026-05-31" \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{
+  "funnel_id": 10,
+  "period": { "from": "2026-05-01", "to": "2026-05-31" },
+  "stages": [
+    { "id": "lead", "name": "Lead", "items_count": 124, "total_value": 0, "avg_time_in_stage_seconds": 86400 },
+    { "id": "qualified", "name": "Qualificado", "items_count": 48, "total_value": 75000, "avg_time_in_stage_seconds": 172800 },
+    { "id": "proposal", "name": "Proposta", "items_count": 22, "total_value": 38500, "avg_time_in_stage_seconds": 432000 },
+    { "id": "won", "name": "Ganho", "items_count": 8, "total_value": 16800, "avg_time_in_stage_seconds": 0 },
+    { "id": "lost", "name": "Perdido", "items_count": 14, "total_value": 0, "avg_time_in_stage_seconds": 0 }
+  ],
+  "conversion_rate_overall": 0.0645
+}
+```
+
+---
 
 ## Reordenar etapas
 
-```bash
+```http
+PATCH /funnels/{id}/reorder
+```
+
+<ParamField path="id" type="integer" required>ID do funil</ParamField>
+<ParamField body="stages" type="array" required>Array de IDs de stages na nova ordem desejada</ParamField>
+
+A ordem do array é a nova ordem visual. Todos os IDs precisam existir no funil.
+
+### Requisição
+
+```bash cURL
 curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/funnels/10/reorder \
   -H "api_access_token: $TOKEN" \
   -H "Content-Type: application/json" \
@@ -124,13 +292,86 @@ curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/funnels/10/reorder
   }'
 ```
 
-A ordem do array é a nova ordem visual. Os IDs precisam existir no funil.
+### Resposta `200`
 
-## Métricas por etapa
+```json
+{
+  "funnel_id": 10,
+  "stages": [
+    { "id": "proposal", "position": 1 },
+    { "id": "lead", "position": 2 },
+    { "id": "qualified", "position": 3 },
+    { "id": "won", "position": 4 },
+    { "id": "lost", "position": 5 }
+  ]
+}
+```
 
-```bash
-curl https://chat.lfautomatiza.com/api/v1/accounts/1/funnels/10/stage_stats \
+---
+
+## Listar itens deste funil
+
+```http
+GET /funnels/{funnel_id}/kanban_items
+```
+
+Atalho conveniente — equivale a `GET /kanban_items?funnel_id={funnel_id}`.
+
+<ParamField path="funnel_id" type="integer" required>ID do funil</ParamField>
+<ParamField query="stage_id" type="string">Filtra por etapa específica</ParamField>
+<ParamField query="agent_id" type="integer">Filtra por agente atribuído</ParamField>
+<ParamField query="page" type="integer" default="1">Paginação</ParamField>
+
+### Requisição
+
+```bash cURL
+curl "https://chat.lfautomatiza.com/api/v1/accounts/1/funnels/10/kanban_items?stage_id=qualified&page=1" \
   -H "api_access_token: $TOKEN"
 ```
 
-Retorna contagem de cards e valor total por etapa, útil pra dashboards externos.
+### Resposta `200`
+
+```json
+{
+  "data": {
+    "payload": [
+      {
+        "id": 101,
+        "funnel_id": 10,
+        "funnel_stage": "qualified",
+        "position": 1,
+        "item_details": {
+          "title": "Oportunidade ACME",
+          "status": "open",
+          "priority": "high",
+          "value": 5000,
+          "currency": { "code": "BRL", "symbol": "R$" }
+        },
+        "assigned_agents": [{ "id": 7, "name": "Sabrina" }],
+        "conversation_display_id": 1287,
+        "created_at": "2026-05-10T10:00:00Z"
+      }
+    ],
+    "meta": {
+      "current_page": 1,
+      "total_pages": 3,
+      "total_count": 48
+    }
+  }
+}
+```
+
+---
+
+## Códigos de resposta
+
+| Código | Quando acontece |
+| --- | --- |
+| `200 OK` | Listagem, leitura ou atualização bem-sucedida |
+| `201 Created` | Funil criado |
+| `204 No Content` | Funil removido |
+| `400 Bad Request` | Payload inválido (stages mal formado, IDs ausentes) |
+| `401 Unauthorized` | Token ausente ou inválido |
+| `403 Forbidden` | Sem permissão na conta |
+| `404 Not Found` | Funil não existe |
+| `422 Unprocessable Entity` | Validação falhou (ex: stage IDs duplicados, name vazio) |

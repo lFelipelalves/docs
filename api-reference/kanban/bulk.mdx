@@ -1,23 +1,29 @@
 ---
-title: "Ações em massa e relatórios"
-description: "Operações em lote, importação/exportação CSV e endpoints de busca/relatório."
+title: "Ações em massa, busca e relatórios"
+description: "Operações em lote, busca textual, filtros avançados, métricas e importação/exportação CSV."
 ---
 
-Pra agir sobre dezenas ou centenas de cards de uma vez, use os endpoints de
+Para agir sobre dezenas ou centenas de cards de uma vez, use os endpoints de
 **ações em massa** em vez de fazer N chamadas individuais — é mais rápido e
 respeita o rate limit.
 
-## Ações em massa
+**Base:** `https://chat.lfautomatiza.com/api/v1/accounts/{account_id}`
 
-| Método | Endpoint | Descrição |
-| --- | --- | --- |
-| `POST` | `/kanban_items/bulk_move_items` | Move múltiplos cards de etapa |
-| `POST` | `/kanban_items/bulk_assign_agent` | Atribui agente em lote |
-| `POST` | `/kanban_items/bulk_set_priority` | Atualiza prioridade em lote |
+---
 
-### Mover em massa
+## Mover cards em massa
 
-```bash
+```http
+POST /kanban_items/bulk_move_items
+```
+
+<ParamField body="item_ids" type="array" required>IDs dos cards a mover</ParamField>
+<ParamField body="new_stage" type="string" required>Etapa destino</ParamField>
+<ParamField body="funnel_id" type="integer">Funil destino (se diferente do atual)</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/bulk_move_items \
   -H "api_access_token: $TOKEN" \
   -H "Content-Type: application/json" \
@@ -28,9 +34,36 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/bulk_m
   }'
 ```
 
-### Atribuir agente em lote
+### Resposta `200`
 
-```bash
+```json
+{
+  "moved_count": 4,
+  "items": [
+    { "id": 101, "funnel_stage": "proposal" },
+    { "id": 102, "funnel_stage": "proposal" },
+    { "id": 103, "funnel_stage": "proposal" },
+    { "id": 104, "funnel_stage": "proposal" }
+  ],
+  "automations_triggered": 12
+}
+```
+
+---
+
+## Atribuir agente em lote
+
+```http
+POST /kanban_items/bulk_assign_agent
+```
+
+<ParamField body="item_ids" type="array" required>IDs dos cards</ParamField>
+<ParamField body="agent_id" type="integer" required>Agente a atribuir</ParamField>
+<ParamField body="mode" type="enum" required>`replace` substitui agentes atuais, `add` adiciona ao existente</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/bulk_assign_agent \
   -H "api_access_token: $TOKEN" \
   -H "Content-Type: application/json" \
@@ -41,94 +74,280 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/bulk_a
   }'
 ```
 
-| `mode` | Comportamento |
-| --- | --- |
-| `replace` | Substitui agentes atuais pelo `agent_id` |
-| `add` | Adiciona o `agent_id` aos agentes já atribuídos |
+### Resposta `200`
 
-### Mudar prioridade em lote
-
-```bash
-curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/bulk_set_priority \
-  -H "api_access_token: $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{ "item_ids": [101, 102, 103], "priority": "high" }'
+```json
+{
+  "assigned_count": 3,
+  "agent_id": 7,
+  "mode": "replace"
+}
 ```
 
 ---
 
-## Busca e filtros avançados
+## Mudar prioridade em lote
 
-| Método | Endpoint | Descrição |
-| --- | --- | --- |
-| `GET` | `/kanban_items/search` | Busca textual em título/descrição/notas |
-| `GET` | `/kanban_items/filter` | Filtros avançados (valor, datas, prioridade) |
-| `GET` | `/kanban_items/reports` | Métricas agregadas |
-| `GET` | `/kanban_items/debug` | Dados técnicos (debug, suporte) |
+```http
+POST /kanban_items/bulk_set_priority
+```
 
-### Filtro avançado
+<ParamField body="item_ids" type="array" required>IDs dos cards</ParamField>
+<ParamField body="priority" type="enum" required>`low`, `medium`, `high`, `urgent`</ParamField>
 
-```bash
+### Requisição
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/bulk_set_priority \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "item_ids": [101, 102, 103],
+    "priority": "high"
+  }'
+```
+
+### Resposta `200`
+
+```json
+{
+  "updated_count": 3,
+  "priority": "high"
+}
+```
+
+---
+
+## Busca textual
+
+```http
+GET /kanban_items/search
+```
+
+Busca em título, descrição e conteúdo de notas.
+
+<ParamField query="query" type="string" required>Texto a buscar</ParamField>
+<ParamField query="funnel_id" type="integer">Limita a um funil específico</ParamField>
+<ParamField query="agent_id" type="integer">Limita a cards atribuídos a um agente</ParamField>
+
+### Requisição
+
+```bash cURL
+curl "https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/search?query=ACME&funnel_id=10" \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{
+  "query": "ACME",
+  "matches": [
+    {
+      "id": 101,
+      "item_details": { "title": "Oportunidade ACME", "value": 5000 },
+      "funnel_stage": "qualified",
+      "highlight": ["title"]
+    }
+  ],
+  "count": 1
+}
+```
+
+---
+
+## Filtro avançado
+
+```http
+GET /kanban_items/filter
+```
+
+<ParamField query="funnel_id" type="integer">Limita a um funil</ParamField>
+<ParamField query="priorities[]" type="array">Uma ou mais prioridades (`low`, `medium`, `high`, `urgent`)</ParamField>
+<ParamField query="value_min" type="number">Valor mínimo</ParamField>
+<ParamField query="value_max" type="number">Valor máximo</ParamField>
+<ParamField query="agent_id" type="integer">Agente atribuído</ParamField>
+<ParamField query="from" type="date">Início do intervalo de criação</ParamField>
+<ParamField query="to" type="date">Fim do intervalo</ParamField>
+
+### Requisição
+
+```bash cURL
 curl "https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/filter?funnel_id=10&priorities[]=high&priorities[]=urgent&value_min=1000&value_max=50000&agent_id=7&from=2026-05-01&to=2026-05-31" \
   -H "api_access_token: $TOKEN"
 ```
 
-Parâmetros suportados:
+### Resposta `200`
 
-| Parâmetro | Tipo | Descrição |
-| --- | --- | --- |
-| `funnel_id` | integer | Filtra por funil |
-| `priorities[]` | array | Múltiplas prioridades simultâneas |
-| `value_min` | number | Valor mínimo do card |
-| `value_max` | number | Valor máximo |
-| `agent_id` | integer | Atribuído a este agente |
-| `from` / `to` | date | Intervalo de criação |
-
-### Relatórios
-
-```bash
-curl "https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/reports?funnel_id=10&from=2026-05-01&to=2026-05-31&user_ids[]=7&user_ids[]=11&inbox_id=1" \
-  -H "api_access_token: $TOKEN"
+```json
+{
+  "filters_applied": {
+    "funnel_id": 10,
+    "priorities": ["high", "urgent"],
+    "value_range": [1000, 50000],
+    "agent_id": 7,
+    "date_range": ["2026-05-01", "2026-05-31"]
+  },
+  "items": [/* cards */],
+  "count": 18,
+  "total_value": 87500
+}
 ```
-
-Retorna: total por etapa, conversion rate entre etapas, tempo médio por etapa,
-valor total ganho/perdido no período.
 
 ---
 
-## Importação e exportação CSV
+## Relatórios do quadro
 
-| Método | Endpoint | Descrição |
-| --- | --- | --- |
-| `GET` | `/kanban_items/export` | Exporta CSV |
-| `POST` | `/kanban_items/import_preview` | Pré-visualiza CSV antes de importar |
-| `POST` | `/kanban_items/import` | Importa CSV definitivamente |
+```http
+GET /kanban_items/reports
+```
 
-### Exportar
+<ParamField query="funnel_id" type="integer" required>Funil pra reportar</ParamField>
+<ParamField query="from" type="date" required>Início da janela</ParamField>
+<ParamField query="to" type="date" required>Fim da janela</ParamField>
+<ParamField query="user_ids[]" type="array">Limita a agentes específicos</ParamField>
+<ParamField query="inbox_id" type="integer">Filtra por canal de origem</ParamField>
 
-```bash
+### Requisição
+
+```bash cURL
+curl "https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/reports?funnel_id=10&from=2026-05-01&to=2026-05-31&user_ids[]=7&user_ids[]=11" \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{
+  "period": { "from": "2026-05-01", "to": "2026-05-31" },
+  "funnel_id": 10,
+  "totals": {
+    "items_created": 124,
+    "items_won": 8,
+    "items_lost": 14,
+    "items_in_progress": 102,
+    "won_value": 16800,
+    "average_deal_size": 2100
+  },
+  "conversion_by_stage": {
+    "lead_to_qualified": 0.387,
+    "qualified_to_proposal": 0.458,
+    "proposal_to_won": 0.364
+  },
+  "avg_time_by_stage_seconds": {
+    "lead": 86400,
+    "qualified": 172800,
+    "proposal": 432000
+  }
+}
+```
+
+---
+
+## Debug
+
+```http
+GET /kanban_items/debug
+```
+
+Endpoint técnico que retorna dados de diagnóstico (uso interno + suporte). Não use
+em integrações de produção.
+
+<ParamField query="funnel_id" type="integer">Limita ao funil</ParamField>
+
+### Requisição
+
+```bash cURL
+curl "https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/debug?funnel_id=10" \
+  -H "api_access_token: $TOKEN"
+```
+
+---
+
+## Exportar CSV
+
+```http
+GET /kanban_items/export
+```
+
+<ParamField query="funnel_id" type="integer" required>Funil a exportar</ParamField>
+<ParamField query="stage_id" type="string">Filtra por etapa (opcional)</ParamField>
+<ParamField query="from" type="date">Início (opcional)</ParamField>
+<ParamField query="to" type="date">Fim (opcional)</ParamField>
+
+CSV vem em **UTF-8 com BOM** e separador `;` — abre direto no Excel BR.
+
+### Requisição
+
+```bash cURL
 curl "https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/export?funnel_id=10" \
   -H "api_access_token: $TOKEN" \
   -o cards.csv
 ```
 
-CSV vem em **UTF-8 com BOM** e separador `;` — abre direto no Excel BR sem
-quebrar acentuação.
+### Resposta `200`
 
-### Preview de importação
+```csv
+id;titulo;valor;moeda;etapa;agente;criado_em;atualizado_em
+101;Oportunidade ACME;5000;BRL;qualified;Sabrina;2026-05-10T10:00:00Z;2026-05-18T14:00:00Z
+102;Beta Corp;7500;BRL;proposal;Marcos;2026-05-12T08:00:00Z;2026-05-18T12:00:00Z
+```
 
-```bash
+---
+
+## Preview de importação
+
+```http
+POST /kanban_items/import_preview
+```
+
+Multipart. Retorna as primeiras 10 linhas detectadas + colunas identificadas, pra
+você mapear no próximo passo.
+
+<ParamField body="file" type="file" required>Arquivo CSV (multipart)</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/import_preview \
   -H "api_access_token: $TOKEN" \
   -F "file=@leads.csv"
 ```
 
-Retorna as primeiras 10 linhas detectadas + colunas identificadas, pra você
-mapear no próximo passo.
+### Resposta `200`
 
-### Importar definitivamente
+```json
+{
+  "detected_columns": ["Nome", "Empresa", "Valor", "Telefone"],
+  "preview_rows": [
+    { "Nome": "Carlos", "Empresa": "ACME", "Valor": "5000", "Telefone": "+55..." },
+    { "Nome": "Maria", "Empresa": "Beta", "Valor": "7500", "Telefone": "+55..." }
+  ],
+  "total_rows_detected": 1247,
+  "suggested_mappings": {
+    "Nome": "title",
+    "Empresa": "description",
+    "Valor": "value"
+  }
+}
+```
 
-```bash
+---
+
+## Importar definitivamente
+
+```http
+POST /kanban_items/import
+```
+
+<ParamField body="file" type="file" required>Arquivo CSV</ParamField>
+<ParamField body="funnel_id" type="integer" required>Funil destino</ParamField>
+<ParamField body="default_stage_id" type="string">Etapa onde criar os cards (padrão: primeira do funil)</ParamField>
+<ParamField body="mappings" type="object" required>Mapa `coluna_csv → campo_da_api` em JSON</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/import \
   -H "api_access_token: $TOKEN" \
   -F "file=@leads.csv" \
@@ -137,7 +356,31 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_items/import
   -F 'mappings={"Nome":"title","Empresa":"description","Valor":"value"}'
 ```
 
+### Resposta `200`
+
+```json
+{
+  "import_id": "imp_abc123",
+  "status": "processing",
+  "total_rows": 1247,
+  "estimated_seconds": 90
+}
+```
+
 <Tip>
   Pra importação em produção, sempre rode `import_preview` antes pra confirmar
   o mapeamento de colunas. Importação em massa não tem desfazer fácil.
 </Tip>
+
+---
+
+## Códigos de resposta
+
+| Código | Quando acontece |
+| --- | --- |
+| `200 OK` | Operação concluída |
+| `204 No Content` | Importação enfileirada (processamento assíncrono) |
+| `400 Bad Request` | `item_ids` vazio, `funnel_id` ausente, CSV malformado |
+| `403 Forbidden` | Sem permissão no funil |
+| `413 Payload Too Large` | Arquivo CSV maior que limite |
+| `422 Unprocessable Entity` | Mapping inválido, etapa inexistente, prioridade desconhecida |

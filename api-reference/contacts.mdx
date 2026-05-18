@@ -1,34 +1,79 @@
 ---
 title: "Contatos"
-description: "CRUD de contatos, busca, importação em massa, notas e conversas vinculadas."
+description: "CRUD de contatos, busca, importação em massa, notas, mesclagem e conversas vinculadas."
 ---
 
-Contatos são as pessoas que conversam com sua equipe. Cada contato pode ter múltiplas
-conversas (uma por canal/inbox) e atributos personalizados ilimitados.
+Contatos são as pessoas que conversam com sua equipe. Cada contato pode ter
+múltiplas conversas (uma por canal/inbox) e atributos personalizados ilimitados.
+
+**Base:** `https://chat.lfautomatiza.com/api/v1/accounts/{account_id}`
+
+---
 
 ## Listar contatos
 
 ```http
-GET /api/v1/accounts/{account_id}/contacts
+GET /contacts
 ```
 
-| Parâmetro | Descrição |
-| --- | --- |
-| `q` | Busca textual em nome, e-mail, telefone, identifier |
-| `page` | Paginação (15 itens por página) |
-| `sort` | `name`, `phone_number`, `email`, `created_at` (use `-name` pra desc) |
-| `include_contact_inboxes` | `true` retorna também as inboxes do contato |
+<ParamField query="q" type="string">Busca textual em nome, e-mail, telefone, identifier</ParamField>
+<ParamField query="page" type="integer" default="1">Paginação (15 itens por página)</ParamField>
+<ParamField query="sort" type="enum">`name`, `phone_number`, `email`, `created_at` (use `-name` pra desc)</ParamField>
+<ParamField query="include_contact_inboxes" type="boolean">`true` retorna também as inboxes do contato</ParamField>
 
-```bash
+### Requisição
+
+```bash cURL
 curl "https://chat.lfautomatiza.com/api/v1/accounts/1/contacts?q=carlos&page=1" \
   -H "api_access_token: $TOKEN"
 ```
 
+### Resposta `200`
+
+```json
+{
+  "meta": { "count": 1, "current_page": 1 },
+  "payload": [
+    {
+      "id": 542,
+      "name": "Carlos Antônio",
+      "email": "carlos@empresa.com.br",
+      "phone_number": "+5521999544338",
+      "identifier": "crm-id-1234",
+      "thumbnail": "https://cdn.lfautomatiza.com/...",
+      "blocked": false,
+      "additional_attributes": {
+        "city": "Rio de Janeiro",
+        "country": "Brazil",
+        "company_name": "ACME Corp"
+      },
+      "custom_attributes": {
+        "categoria": "vip"
+      },
+      "last_activity_at": 1715972400
+    }
+  ]
+}
+```
+
+---
+
 ## Detalhe do contato
 
 ```http
-GET /api/v1/accounts/{account_id}/contacts/{id}
+GET /contacts/{id}
 ```
+
+<ParamField path="id" type="integer" required>ID do contato</ParamField>
+
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/542 \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
 
 ```json
 {
@@ -38,6 +83,7 @@ GET /api/v1/accounts/{account_id}/contacts/{id}
   "phone_number": "+5521999544338",
   "identifier": "crm-id-1234",
   "thumbnail": "https://cdn.lfautomatiza.com/...",
+  "blocked": false,
   "additional_attributes": {
     "city": "Rio de Janeiro",
     "country": "Brazil",
@@ -48,29 +94,34 @@ GET /api/v1/accounts/{account_id}/contacts/{id}
     "categoria": "vip"
   },
   "contact_inboxes": [
-    { "source_id": "5521999544338", "inbox": { "id": 1, "name": "WhatsApp Principal" } }
+    {
+      "source_id": "5521999544338",
+      "inbox": { "id": 1, "name": "WhatsApp Principal" }
+    }
   ]
 }
 ```
 
+---
+
 ## Criar contato
 
 ```http
-POST /api/v1/accounts/{account_id}/contacts
+POST /contacts
 ```
 
-| Campo | Tipo | Obrigatório | Descrição |
-| --- | --- | --- | --- |
-| `inbox_id` | integer | ✅ | Onde o contato será criado |
-| `name` | string | | Nome do contato |
-| `email` | string | | E-mail (precisa ser único por conta) |
-| `phone_number` | string | | E.164 (`+5521999544338`) |
-| `identifier` | string | | ID externo (ex: ID do CRM) |
-| `avatar_url` | string | | URL pública de imagem |
-| `additional_attributes` | object | | Metadata sistêmica (cidade, empresa, etc.) |
-| `custom_attributes` | object | | Atributos customizados que você definiu |
+<ParamField body="inbox_id" type="integer" required>Onde o contato será criado</ParamField>
+<ParamField body="name" type="string">Nome do contato</ParamField>
+<ParamField body="email" type="string">E-mail (único por conta)</ParamField>
+<ParamField body="phone_number" type="string">E.164 (`+5521999544338`)</ParamField>
+<ParamField body="identifier" type="string">ID externo (ex: ID do CRM)</ParamField>
+<ParamField body="avatar_url" type="string">URL pública de imagem</ParamField>
+<ParamField body="additional_attributes" type="object">Metadata sistêmica</ParamField>
+<ParamField body="custom_attributes" type="object">Atributos personalizados definidos na conta</ParamField>
 
-```bash
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/contacts \
   -H "api_access_token: $TOKEN" \
   -H "Content-Type: application/json" \
@@ -87,50 +138,138 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/contacts \
   }'
 ```
 
+### Resposta `200`
+
+```json
+{
+  "id": 543,
+  "name": "Maria Silva",
+  "email": "maria@empresa.com",
+  "phone_number": "+5511999887766",
+  "identifier": "crm-9876",
+  "contact_inboxes": [
+    { "source_id": "+5511999887766", "inbox": { "id": 1, "name": "WhatsApp Principal" } }
+  ]
+}
+```
+
+---
+
 ## Atualizar contato
 
 ```http
-PATCH /api/v1/accounts/{account_id}/contacts/{id}
-PUT /api/v1/accounts/{account_id}/contacts/{id}
+PATCH /contacts/{id}
+PUT /contacts/{id}
 ```
 
-```bash
+<ParamField path="id" type="integer" required>ID do contato</ParamField>
+
+Envie apenas os campos que quer mudar.
+
+### Requisição
+
+```bash cURL
 curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/542 \
   -H "api_access_token: $TOKEN" \
-  -d '{ "email": "novo@email.com" }'
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "novo@email.com",
+    "custom_attributes": {
+      "categoria": "vip-plus"
+    }
+  }'
 ```
+
+### Resposta `200`
+
+```json
+{
+  "id": 542,
+  "email": "novo@email.com",
+  "custom_attributes": { "categoria": "vip-plus" },
+  "updated_at": "2026-05-18T20:00:00Z"
+}
+```
+
+---
 
 ## Excluir contato
 
 ```http
-DELETE /api/v1/accounts/{account_id}/contacts/{id}
+DELETE /contacts/{id}
 ```
 
+<ParamField path="id" type="integer" required>ID do contato</ParamField>
+
 <Warning>
-  Exclusão é irreversível e remove todas as conversas e mensagens vinculadas.
-  Considere usar **bloqueio** em vez de exclusão se for por motivo de comportamento.
+  Exclusão é irreversível e remove **todas as conversas e mensagens** vinculadas.
+  Considere usar bloqueio em vez de exclusão.
 </Warning>
+
+### Requisição
+
+```bash cURL
+curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/542 \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{ "success": true }
+```
+
+---
 
 ## Buscar contatos
 
-Busca textual otimizada (mais rápida que o GET com `q`):
-
 ```http
-GET /api/v1/accounts/{account_id}/contacts/search
+GET /contacts/search
 ```
 
-```bash
+Busca textual otimizada (mais rápida que `GET /contacts?q=...`).
+
+<ParamField query="q" type="string" required>Texto a buscar</ParamField>
+<ParamField query="include" type="string">`conversations` retorna conversas vinculadas no payload</ParamField>
+
+### Requisição
+
+```bash cURL
 curl "https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/search?q=carlos&include=conversations" \
   -H "api_access_token: $TOKEN"
 ```
 
+### Resposta `200`
+
+```json
+{
+  "meta": { "count": 1 },
+  "payload": [
+    {
+      "id": 542,
+      "name": "Carlos Antônio",
+      "email": "carlos@empresa.com.br",
+      "conversations": [
+        { "id": 1287, "status": "open", "inbox_id": 1 }
+      ]
+    }
+  ]
+}
+```
+
+---
+
 ## Filtro avançado
 
 ```http
-POST /api/v1/accounts/{account_id}/contacts/filter
+POST /contacts/filter
 ```
 
-```bash
+<ParamField body="payload" type="array" required>Array de condições (estrutura igual ao filtro de conversas)</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/filter \
   -H "api_access_token: $TOKEN" \
   -H "Content-Type: application/json" \
@@ -151,119 +290,381 @@ curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/filter \
   }'
 ```
 
+### Resposta `200`
+
+```json
+{
+  "meta": { "count": 12 },
+  "payload": [
+    { "id": 542, "name": "Carlos Antônio", "custom_attributes": { "categoria": "vip" } }
+  ]
+}
+```
+
+---
+
 ## Conversas do contato
 
 ```http
-GET /api/v1/accounts/{account_id}/contacts/{id}/conversations
+GET /contacts/{id}/conversations
 ```
+
+<ParamField path="id" type="integer" required>ID do contato</ParamField>
 
 Retorna todas as conversas (em qualquer canal) que esse contato já teve.
 
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/542/conversations \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{
+  "payload": [
+    {
+      "id": 1287,
+      "status": "open",
+      "inbox_id": 1,
+      "messages_count": 8,
+      "created_at": 1715900000
+    }
+  ]
+}
+```
+
+---
+
 ## Inboxes vinculadas
 
-Cada contato pode estar em múltiplas inboxes (canais). Lista vinculações atuais:
-
 ```http
-GET /api/v1/accounts/{account_id}/contacts/{id}/contact_inboxes
+GET /contacts/{id}/contact_inboxes
 ```
 
-Cria nova vinculação (ex: cadastrar e-mail do contato que já existe como WhatsApp):
+<ParamField path="id" type="integer" required>ID do contato</ParamField>
 
-```http
-POST /api/v1/accounts/{account_id}/contacts/{id}/contact_inboxes
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/542/contact_inboxes \
+  -H "api_access_token: $TOKEN"
 ```
 
-```bash
+### Resposta `200`
+
+```json
+[
+  {
+    "source_id": "5521999544338",
+    "inbox": { "id": 1, "name": "WhatsApp Principal", "channel_type": "Channel::Whatsapp" }
+  }
+]
+```
+
+---
+
+## Criar vínculo com inbox
+
+```http
+POST /contacts/{id}/contact_inboxes
+```
+
+Cadastrar e-mail ou número adicional pra um contato já existente.
+
+<ParamField path="id" type="integer" required>ID do contato</ParamField>
+<ParamField body="inbox_id" type="integer" required>Inbox onde criar o vínculo</ParamField>
+<ParamField body="source_id" type="string" required>Identificador no canal (e-mail, telefone, etc.)</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/542/contact_inboxes \
   -H "api_access_token: $TOKEN" \
-  -d '{ "inbox_id": 3, "source_id": "carlos@empresa.com.br" }'
+  -H "Content-Type: application/json" \
+  -d '{
+    "inbox_id": 3,
+    "source_id": "carlos@empresa.com.br"
+  }'
 ```
 
-## Inboxes em que esse contato pode receber
+### Resposta `200`
+
+```json
+{
+  "source_id": "carlos@empresa.com.br",
+  "inbox": { "id": 3, "name": "Email Suporte" }
+}
+```
+
+---
+
+## Inboxes onde pode receber proativa
 
 ```http
-GET /api/v1/accounts/{account_id}/contacts/{id}/contactable_inboxes
+GET /contacts/{id}/contactable_inboxes
 ```
 
-Lista inboxes onde o contato tem identificador válido pra receber mensagem proativa
-(útil pra UI de "iniciar nova conversa").
+<ParamField path="id" type="integer" required>ID do contato</ParamField>
 
-## Notas do contato
+Lista inboxes onde o contato tem identificador válido pra receber mensagem proativa.
 
-| Método | Endpoint |
-| --- | --- |
-| `GET` | `/contacts/{contact_id}/notes` |
-| `POST` | `/contacts/{contact_id}/notes` |
-| `PATCH` | `/contacts/{contact_id}/notes/{id}` |
-| `DELETE` | `/contacts/{contact_id}/notes/{id}` |
+### Requisição
 
-```bash
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/542/contactable_inboxes \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+[
+  { "inbox": { "id": 1, "name": "WhatsApp Principal" }, "source_id": "5521999544338" },
+  { "inbox": { "id": 3, "name": "Email Suporte" }, "source_id": "carlos@empresa.com.br" }
+]
+```
+
+---
+
+## Listar notas do contato
+
+```http
+GET /contacts/{contact_id}/notes
+```
+
+<ParamField path="contact_id" type="integer" required>ID do contato</ParamField>
+
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/542/notes \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+[
+  {
+    "id": 91,
+    "content": "Cliente VIP — prioridade total.",
+    "user": { "id": 7, "name": "Sabrina" },
+    "created_at": "2026-05-15T10:00:00Z"
+  }
+]
+```
+
+---
+
+## Criar nota no contato
+
+```http
+POST /contacts/{contact_id}/notes
+```
+
+<ParamField path="contact_id" type="integer" required>ID do contato</ParamField>
+<ParamField body="content" type="string" required>Texto da nota</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/542/notes \
   -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
   -d '{ "content": "Cliente VIP — prioridade total." }'
 ```
 
-## Importação em massa (CSV)
+### Resposta `200`
 
-```http
-POST /api/v1/accounts/{account_id}/contacts/import
+```json
+{
+  "id": 91,
+  "content": "Cliente VIP — prioridade total.",
+  "user_id": 7,
+  "created_at": "2026-05-18T20:30:00Z"
+}
 ```
 
-Multipart com o arquivo CSV. Colunas suportadas:
+---
 
-| Coluna CSV | Mapeamento |
-| --- | --- |
-| `name` | Nome |
-| `email` | E-mail |
-| `phone_number` | Telefone em E.164 |
-| `identifier` | ID externo |
-| `additional_attributes_*` | Atributos sistêmicos (ex: `additional_attributes_city`) |
-| `custom_attributes_*` | Atributos customizados (ex: `custom_attributes_categoria`) |
+## Atualizar nota
 
-```bash
+```http
+PATCH /contacts/{contact_id}/notes/{id}
+```
+
+<ParamField path="contact_id" type="integer" required>ID do contato</ParamField>
+<ParamField path="id" type="integer" required>ID da nota</ParamField>
+<ParamField body="content" type="string" required>Novo texto</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/542/notes/91 \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "content": "Cliente VIP — prioridade total. Atualizei dados de contato." }'
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 91,
+  "content": "Cliente VIP — prioridade total. Atualizei dados de contato.",
+  "updated_at": "2026-05-18T20:45:00Z"
+}
+```
+
+---
+
+## Excluir nota
+
+```http
+DELETE /contacts/{contact_id}/notes/{id}
+```
+
+<ParamField path="contact_id" type="integer" required>ID do contato</ParamField>
+<ParamField path="id" type="integer" required>ID da nota</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/542/notes/91 \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `204`
+
+Sem corpo.
+
+---
+
+## Importar contatos via CSV
+
+```http
+POST /contacts/import
+```
+
+Multipart. Colunas suportadas: `name`, `email`, `phone_number`, `identifier`,
+`additional_attributes_*`, `custom_attributes_*`.
+
+<ParamField body="import_file" type="file" required>Arquivo CSV</ParamField>
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/import \
   -H "api_access_token: $TOKEN" \
   -F "import_file=@contatos.csv"
 ```
 
-<Tip>
-  Tamanho recomendado por arquivo: até 50.000 linhas. Acima disso, divida em
-  arquivos menores pra evitar timeout.
-</Tip>
+### Resposta `200`
 
-## Bloquear contato
-
-```http
-POST /api/v1/accounts/{account_id}/contacts/{id}/block
-POST /api/v1/accounts/{account_id}/contacts/{id}/unblock
+```json
+{
+  "import_id": "imp_xyz789",
+  "status": "processing",
+  "total_rows": 1247,
+  "estimated_seconds": 60
+}
 ```
 
-Contato bloqueado não consegue iniciar novas conversas. Mensagens existentes ficam
-preservadas.
+<Tip>
+  Tamanho recomendado: até 50.000 linhas por arquivo. Acima disso, divida.
+</Tip>
+
+---
+
+## Bloquear / desbloquear
+
+```http
+POST /contacts/{id}/block
+POST /contacts/{id}/unblock
+```
+
+Contato bloqueado não consegue iniciar novas conversas. Mensagens existentes ficam preservadas.
+
+<ParamField path="id" type="integer" required>ID do contato</ParamField>
+
+### Requisição — bloquear
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/542/block \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{ "id": 542, "blocked": true }
+```
+
+### Requisição — desbloquear
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/contacts/542/unblock \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{ "id": 542, "blocked": false }
+```
+
+---
 
 ## Mesclar contatos (merge)
 
-Quando o mesmo cliente aparece em 2 cadastros (ex: WhatsApp + e-mail criaram separados):
-
 ```http
-POST /api/v1/accounts/{account_id}/actions/contact_merge
+POST /actions/contact_merge
 ```
 
-```bash
-curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/actions/contact_merge \
-  -H "api_access_token: $TOKEN" \
-  -d '{ "base_contact_id": 542, "mergee_contact_id": 543 }'
-```
+Quando o mesmo cliente aparece em 2 cadastros separados (ex: WhatsApp + e-mail).
+
+<ParamField body="base_contact_id" type="integer" required>Contato que será mantido</ParamField>
+<ParamField body="mergee_contact_id" type="integer" required>Contato que será absorvido</ParamField>
 
 Todas as conversas, notas e atributos do `mergee_contact_id` migram pro `base_contact_id`.
+O contato mergee é removido após a operação.
+
+### Requisição
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/actions/contact_merge \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "base_contact_id": 542,
+    "mergee_contact_id": 543
+  }'
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 542,
+  "name": "Carlos Antônio",
+  "merged_count": 1,
+  "conversations_migrated": 3,
+  "notes_migrated": 2
+}
+```
+
+---
 
 ## Códigos de resposta
 
 | Código | Quando acontece |
 | --- | --- |
-| `200 OK` | Sucesso em GET/PATCH |
+| `200 OK` | Sucesso em GET/POST/PATCH |
 | `201 Created` | Contato criado |
-| `204 No Content` | Excluído com sucesso |
+| `204 No Content` | Nota excluída |
 | `400 Bad Request` | Payload inválido |
 | `403 Forbidden` | Sem permissão |
 | `404 Not Found` | Contato não existe |

@@ -1,84 +1,408 @@
 ---
-title: "Automações e configuração"
-description: "Configurar webhooks de Kanban, automações por etapa e config global."
+title: "Automações e configuração do Kanban"
+description: "Webhooks de Kanban, automações por etapa e configuração global do módulo."
 ---
 
 Automações de Kanban executam ações quando cards entram/saem de etapas
 ou mudam de status. Tudo configurável via API.
 
-## Configuração do Kanban
+**Base:** `https://chat.lfautomatiza.com/api/v1/accounts/{account_id}`
 
-| Método | Endpoint | Descrição |
-| --- | --- | --- |
-| `GET` | `/kanban_config` | Obtém configuração atual |
-| `POST` | `/kanban_config` | Cria configuração |
-| `PUT` `PATCH` | `/kanban_config` | Atualiza configuração |
-| `DELETE` | `/kanban_config` | Remove configuração (volta pro default) |
-| `POST` | `/kanban_config/test_webhook` | Testa URL de webhook configurada |
+---
 
-### Payload de configuração
+## Obter configuração atual
+
+```http
+GET /kanban_config
+```
+
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_config \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
 
 ```json
 {
-  "kanban_config": {
-    "enabled": true,
-    "webhook_url": "https://seu-n8n.com/webhook/kanban-events",
-    "webhook_secret": "seu-secret-pra-validar-assinatura",
-    "webhook_events": [
-      "kanban.item.created",
-      "kanban.item.updated",
-      "kanban.item.stage_changed",
-      "kanban.item.status_changed"
-    ],
-    "config": {
-      "title": "Meu Kanban",
-      "default_view": "kanban",
-      "auto_assignment": false,
-      "notifications_enabled": true,
-      "dragbar_enabled": true,
-      "list_view_enabled": true,
-      "agenda_view_enabled": true
-    }
+  "id": 1,
+  "enabled": true,
+  "webhook_url": "https://seu-n8n.com/webhook/kanban-events",
+  "webhook_events": ["kanban.item.created", "kanban.item.stage_changed"],
+  "config": {
+    "title": "Kanban LF",
+    "default_view": "kanban",
+    "auto_assignment": false,
+    "notifications_enabled": true,
+    "dragbar_enabled": true,
+    "list_view_enabled": true,
+    "agenda_view_enabled": true
   }
 }
 ```
 
-| Campo | Descrição |
-| --- | --- |
-| `enabled` | Liga/desliga o módulo Kanban inteiro |
-| `webhook_url` | URL externa que recebe eventos |
-| `webhook_secret` | Usado pra HMAC-SHA256 (validação) |
-| `webhook_events` | Quais eventos disparam o webhook |
-| `config.default_view` | `kanban` ou `list` |
-| `config.auto_assignment` | Atribui automático ao criar card |
-| `config.dragbar_enabled` | Permite drag-and-drop visual |
+---
+
+## Criar configuração
+
+```http
+POST /kanban_config
+```
+
+### Corpo da requisição
+
+<ParamField body="kanban_config.enabled" type="boolean" required>Liga/desliga o módulo Kanban</ParamField>
+<ParamField body="kanban_config.webhook_url" type="string">URL externa que recebe eventos</ParamField>
+<ParamField body="kanban_config.webhook_secret" type="string">Usado pra HMAC-SHA256 (validação de assinatura)</ParamField>
+<ParamField body="kanban_config.webhook_events" type="array">Eventos que disparam o webhook</ParamField>
+<ParamField body="kanban_config.config" type="object">Configurações de UI/comportamento (ver abaixo)</ParamField>
+
+#### `config`
+
+<ParamField body="config.title" type="string">Título exibido no menu Kanban</ParamField>
+<ParamField body="config.default_view" type="enum">`kanban` ou `list`</ParamField>
+<ParamField body="config.auto_assignment" type="boolean">Atribui automático ao criar card</ParamField>
+<ParamField body="config.notifications_enabled" type="boolean">Notifica agentes em mudanças</ParamField>
+<ParamField body="config.dragbar_enabled" type="boolean">Permite drag-and-drop visual</ParamField>
+<ParamField body="config.list_view_enabled" type="boolean">Permite visão em lista</ParamField>
+<ParamField body="config.agenda_view_enabled" type="boolean">Permite visão de agenda</ParamField>
+
+#### Eventos disponíveis em `webhook_events`
+
+- `kanban.item.created`
+- `kanban.item.updated`
+- `kanban.item.stage_changed`
+- `kanban.item.status_changed`
+- `kanban.checklist.completed`
+- `kanban.note.created`
+
+### Requisição
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_config \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "kanban_config": {
+      "enabled": true,
+      "webhook_url": "https://seu-n8n.com/webhook/kanban",
+      "webhook_secret": "minha-secret-segura",
+      "webhook_events": ["kanban.item.created", "kanban.item.stage_changed"],
+      "config": {
+        "title": "Kanban LF",
+        "default_view": "kanban",
+        "auto_assignment": false,
+        "notifications_enabled": true,
+        "dragbar_enabled": true,
+        "list_view_enabled": true,
+        "agenda_view_enabled": false
+      }
+    }
+  }'
+```
+
+### Resposta `201`
+
+```json
+{
+  "id": 1,
+  "enabled": true,
+  "webhook_url": "https://seu-n8n.com/webhook/kanban",
+  "config": { "title": "Kanban LF", "default_view": "kanban" },
+  "created_at": "2026-05-18T20:00:00Z"
+}
+```
+
+---
+
+## Atualizar configuração
+
+```http
+PUT /kanban_config
+PATCH /kanban_config
+```
+
+Envie apenas os campos que quer mudar.
+
+### Requisição
+
+```bash cURL
+curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_config \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "kanban_config": {
+      "webhook_events": ["kanban.item.created", "kanban.item.stage_changed", "kanban.item.status_changed"]
+    }
+  }'
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 1,
+  "webhook_events": ["kanban.item.created", "kanban.item.stage_changed", "kanban.item.status_changed"],
+  "updated_at": "2026-05-18T20:15:00Z"
+}
+```
+
+---
+
+## Excluir configuração
+
+```http
+DELETE /kanban_config
+```
+
+Volta o módulo Kanban pro padrão da plataforma (desativa webhook customizado).
+
+### Requisição
+
+```bash cURL
+curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_config \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `204`
+
+Sem corpo.
+
+---
 
 ## Testar webhook
 
-```bash
+```http
+POST /kanban_config/test_webhook
+```
+
+Dispara um POST simulado pra `webhook_url` cadastrada — útil pra validar
+que a URL responde corretamente.
+
+### Requisição
+
+```bash cURL
 curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban_config/test_webhook \
   -H "api_access_token: $TOKEN"
 ```
 
-Dispara um POST de teste com payload simulado pra validar que sua URL está respondendo.
+### Resposta `200` — webhook respondeu OK
+
+```json
+{
+  "ok": true,
+  "webhook_url": "https://seu-n8n.com/webhook/kanban",
+  "status_code": 200,
+  "response_time_ms": 124,
+  "test_payload": {
+    "event": "test.webhook",
+    "timestamp": "2026-05-18T20:30:00Z"
+  }
+}
+```
+
+### Resposta `200` — webhook falhou
+
+```json
+{
+  "ok": false,
+  "webhook_url": "https://seu-n8n.com/webhook/kanban",
+  "status_code": 503,
+  "error": "Service Unavailable",
+  "response_time_ms": 5042
+}
+```
 
 ---
 
-## Automações por etapa
+# Automações por etapa
 
-Existem **3 variantes** de endpoint pra automações — todas funcionam, mas a primeira é a recomendada.
+Existem 3 variantes de endpoint. **Use sempre a primeira (escopo de conta)** —
+as outras são mantidas por compatibilidade.
 
-### 1. Escopo de conta (recomendado)
+---
 
-| Método | Endpoint | Descrição |
-| --- | --- | --- |
-| `GET` | `/kanban/automations` | Lista automações |
-| `GET` | `/kanban/automations/:id` | Detalhe |
-| `POST` | `/kanban/automations` | Cria |
-| `PATCH` `PUT` | `/kanban/automations/:id` | Atualiza |
-| `DELETE` | `/kanban/automations/:id` | Exclui |
+## Listar automações (recomendado)
 
-### 2. Global legado (compatibilidade)
+```http
+GET /kanban/automations
+```
+
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/kanban/automations \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+[
+  {
+    "id": 4,
+    "name": "Notificar Sabrina quando lead vira proposta",
+    "funnel_id": 10,
+    "stage_id": "proposal",
+    "trigger": "stage_entered",
+    "active": true,
+    "actions": [
+      { "action_name": "send_message", "action_params": ["Nova proposta criada!"] },
+      { "action_name": "assign_agent", "action_params": [7] }
+    ]
+  }
+]
+```
+
+---
+
+## Detalhe da automação
+
+```http
+GET /kanban/automations/{id}
+```
+
+<ParamField path="id" type="integer" required>ID da automação</ParamField>
+
+### Requisição
+
+```bash cURL
+curl https://chat.lfautomatiza.com/api/v1/accounts/1/kanban/automations/4 \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `200`
+
+```json
+{
+  "id": 4,
+  "name": "Notificar Sabrina quando lead vira proposta",
+  "description": "Avisa o agente principal de novas propostas",
+  "funnel_id": 10,
+  "stage_id": "proposal",
+  "trigger": "stage_entered",
+  "conditions": [
+    { "attribute_key": "value", "filter_operator": "greater_than", "values": [1000] }
+  ],
+  "actions": [
+    { "action_name": "send_message", "action_params": ["Nova proposta criada!"] },
+    { "action_name": "assign_agent", "action_params": [7] }
+  ],
+  "active": true,
+  "execution_count": 47,
+  "last_executed_at": "2026-05-18T19:00:00Z"
+}
+```
+
+---
+
+## Criar automação
+
+```http
+POST /kanban/automations
+```
+
+<ParamField body="kanban_automation.name" type="string" required>Nome legível</ParamField>
+<ParamField body="kanban_automation.funnel_id" type="integer" required>Funil onde aplicar</ParamField>
+<ParamField body="kanban_automation.stage_id" type="string" required>Etapa que dispara</ParamField>
+<ParamField body="kanban_automation.trigger" type="enum" required>`stage_entered`, `stage_exited`, `item_created`, `item_status_changed`</ParamField>
+<ParamField body="kanban_automation.conditions" type="array">Filtros opcionais (formato igual ao de regras de automação gerais)</ParamField>
+<ParamField body="kanban_automation.actions" type="array" required>Ações a executar quando dispara</ParamField>
+<ParamField body="kanban_automation.active" type="boolean" default="true">Liga/desliga</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X POST https://chat.lfautomatiza.com/api/v1/accounts/1/kanban/automations \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "kanban_automation": {
+      "name": "Avisar comercial sobre proposta de alto valor",
+      "funnel_id": 10,
+      "stage_id": "proposal",
+      "trigger": "stage_entered",
+      "conditions": [
+        { "attribute_key": "value", "filter_operator": "greater_than", "values": [10000] }
+      ],
+      "actions": [
+        { "action_name": "send_message", "action_params": ["⚠️ Proposta acima de R$10k criada — avisar gerente!"] },
+        { "action_name": "assign_team", "action_params": [3] }
+      ],
+      "active": true
+    }
+  }'
+```
+
+### Resposta `201`
+
+```json
+{
+  "id": 5,
+  "name": "Avisar comercial sobre proposta de alto valor",
+  "active": true,
+  "created_at": "2026-05-18T20:45:00Z"
+}
+```
+
+---
+
+## Atualizar automação
+
+```http
+PATCH /kanban/automations/{id}
+PUT /kanban/automations/{id}
+```
+
+<ParamField path="id" type="integer" required>ID da automação</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X PATCH https://chat.lfautomatiza.com/api/v1/accounts/1/kanban/automations/5 \
+  -H "api_access_token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "kanban_automation": {
+      "active": false
+    }
+  }'
+```
+
+### Resposta `200`
+
+```json
+{ "id": 5, "active": false, "updated_at": "2026-05-18T21:00:00Z" }
+```
+
+---
+
+## Excluir automação
+
+```http
+DELETE /kanban/automations/{id}
+```
+
+<ParamField path="id" type="integer" required>ID da automação</ParamField>
+
+### Requisição
+
+```bash cURL
+curl -X DELETE https://chat.lfautomatiza.com/api/v1/accounts/1/kanban/automations/5 \
+  -H "api_access_token: $TOKEN"
+```
+
+### Resposta `204`
+
+Sem corpo.
+
+---
+
+## Endpoints globais legados
+
+Mantidos por compatibilidade. **Não use em integrações novas.**
 
 | Método | Endpoint |
 | --- | --- |
@@ -88,33 +412,19 @@ Existem **3 variantes** de endpoint pra automações — todas funcionam, mas a 
 | `PATCH` `PUT` | `/api/v1/kanban_automations/:id` |
 | `DELETE` | `/api/v1/kanban_automations/:id` |
 
-<Warning>
-  Endpoints legados são mantidos por compatibilidade — não recomendados pra integrações novas.
-</Warning>
-
-### 3. Namespace Kanban (funis e etapas)
-
-| Método | Endpoint | Descrição |
-| --- | --- | --- |
-| `GET` | `/kanban/funnels` | Lista funis (alt) |
-| `POST` | `/kanban/funnels` | Cria funil (alt) |
-| `GET` | `/kanban/stages` | Lista etapas de um funil |
-| `POST` | `/kanban/stages` | Cria etapa |
-| `PATCH` `PUT` | `/kanban/stages/:id` | Edita etapa |
-| `DELETE` | `/kanban/stages/:id` | Exclui etapa (mover itens pra `fallback_stage_id`) |
+Mesma estrutura de payload dos endpoints com escopo de conta. A única diferença
+é a ausência do prefixo `/accounts/{account_id}` na rota.
 
 ---
 
-## Códigos de resposta esperados
+## Códigos de resposta
 
-| Código | Significado |
+| Código | Quando acontece |
 | --- | --- |
-| `200 OK` | Leitura ou atualização bem-sucedida |
-| `201 Created` | Criação bem-sucedida |
-| `204 No Content` | Exclusão sem corpo |
-| `400 Bad Request` | Payload/parâmetro inválido |
-| `401 Unauthorized` | Token ausente ou inválido |
-| `403 Forbidden` | Sem permissão ou licença |
-| `404 Not Found` | Recurso não encontrado |
-| `422 Unprocessable Entity` | Validação de negócio falhou |
-| `500 Internal Server Error` | Erro inesperado do servidor |
+| `200 OK` | Listagem / leitura / atualização / teste de webhook |
+| `201 Created` | Configuração ou automação criada |
+| `204 No Content` | Removido |
+| `400 Bad Request` | Payload inválido (trigger desconhecido, ação mal formada) |
+| `403 Forbidden` | Sem permissão (apenas administrador) |
+| `404 Not Found` | Automação ou configuração não existe |
+| `422 Unprocessable Entity` | `stage_id` não existe no funil, action_name desconhecida |
