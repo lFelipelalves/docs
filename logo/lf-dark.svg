@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 60" fill="none">
+  <rect x="2" y="2" width="52" height="52" rx="12" fill="#00B86B"/>
+  <text x="27" y="40" font-family="'Manrope', 'Inter', system-ui, sans-serif" font-size="28" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="-1">LF</text>
+  <text x="66" y="30" font-family="'Manrope', 'Inter', system-ui, sans-serif" font-size="22" font-weight="800" fill="#e8ecf1" letter-spacing="-0.5">Connect</text>
+  <circle cx="66" cy="46" r="3" fill="#00B86B"/>
+  <text x="76" y="49" font-family="'Outfit', 'Inter', system-ui, sans-serif" font-size="9" font-weight="500" fill="rgba(255,255,255,0.5)" letter-spacing="1.5">DOCUMENTAÇÃO API</text>
+</svg>
